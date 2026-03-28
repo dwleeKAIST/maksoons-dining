@@ -170,6 +170,89 @@ SKIP_AUTH=true
 2. `gcloud auth login` 으로 인증
 3. `gcloud config set project YOUR_PROJECT_ID`
 
+### Cloud SQL (PostgreSQL) 설정
+
+프로덕션 환경에서 데이터를 저장할 Cloud SQL 인스턴스를 생성합니다.
+
+#### 1. Cloud SQL API 활성화
+
+```bash
+gcloud services enable sqladmin.googleapis.com
+```
+
+#### 2. Cloud SQL 인스턴스 생성
+
+```bash
+# 개발/테스트용 (db-f1-micro, 저비용)
+gcloud sql instances create maksoons-dining-db \
+  --database-version=POSTGRES_16 \
+  --edition=ENTERPRISE \
+  --tier=db-f1-micro \
+  --region=asia-northeast3 \
+  --storage-type=HDD \
+  --storage-size=10GB
+
+# 운영용 (더 높은 성능이 필요한 경우)
+# gcloud sql instances create maksoons-dining-db \
+#   --database-version=POSTGRES_16 \
+#   --edition=ENTERPRISE \
+#   --tier=db-custom-1-3840 \
+#   --region=asia-northeast3 \
+#   --storage-type=SSD \
+#   --storage-size=10GB
+```
+
+> 리전은 Cloud Run과 동일한 `asia-northeast3` (서울)을 사용해야 지연시간이 최소화됩니다.
+
+#### 3. 데이터베이스 및 사용자 생성
+
+```bash
+# 데이터베이스 생성
+gcloud sql databases create maksoons_dining \
+  --instance=maksoons-dining-db
+
+# 사용자 생성 (비밀번호를 안전한 값으로 변경하세요)
+gcloud sql users create maksoon \
+  --instance=maksoons-dining-db \
+  --password=YOUR_SECURE_PASSWORD
+```
+
+#### 4. Cloud Build 서비스 계정에 Cloud SQL 권한 부여
+
+Cloud Run에서 Cloud SQL에 접속하려면 서비스 계정에 권한이 필요합니다.
+
+```bash
+# 프로젝트 번호 확인
+PROJECT_ID=$(gcloud config get-value project)
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+
+# Cloud Build 서비스 계정에 Cloud SQL Client 역할 부여
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+
+# Cloud Run 기본 서비스 계정에도 권한 부여
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+```
+
+#### 5. DATABASE_URL 형식
+
+Cloud Run에서는 Unix 소켓으로 Cloud SQL에 연결합니다. `DATABASE_URL` 형식:
+
+```
+postgresql://maksoon:YOUR_SECURE_PASSWORD@/maksoons_dining?host=/cloudsql/PROJECT_ID:asia-northeast3:maksoons-dining-db
+```
+
+`_CLOUD_SQL_INSTANCE` 형식:
+
+```
+PROJECT_ID:asia-northeast3:maksoons-dining-db
+```
+
+> `PROJECT_ID`는 본인의 GCP 프로젝트 ID로 대체하세요.
+
 ### Cloud Build로 배포
 
 `cloudbuild.yaml`이 이미 설정되어 있습니다. 필요한 GCP 서비스:
@@ -177,9 +260,12 @@ SKIP_AUTH=true
 - **Cloud Run** API 활성화
 - **Cloud Build** API 활성화
 - **Artifact Registry** API 활성화
-- **Cloud SQL** (PostgreSQL 인스턴스 생성)
+- **Cloud SQL** (위 단계에서 생성 완료)
 
 ```bash
+# 필요한 API 활성화
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+
 # Artifact Registry 저장소 생성 (최초 1회)
 gcloud artifacts repositories create maksoons-dining \
   --repository-format=docker \
@@ -187,7 +273,20 @@ gcloud artifacts repositories create maksoons-dining \
 
 # Cloud Build로 빌드 & 배포
 gcloud builds submit --config=cloudbuild.yaml \
-  --substitutions=_ANTHROPIC_API_KEY="sk-ant-...",_FIREBASE_SERVICE_ACCOUNT="...",_VITE_FIREBASE_API_KEY="..."
+  --substitutions=\
+_ANTHROPIC_API_KEY="sk-ant-...",\
+_FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}',\
+_VITE_FIREBASE_API_KEY="AIza...",\
+_VITE_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com",\
+_VITE_FIREBASE_PROJECT_ID="your-project",\
+_VITE_FIREBASE_STORAGE_BUCKET="your-project.appspot.com",\
+_VITE_FIREBASE_MESSAGING_SENDER_ID="123456789",\
+_VITE_FIREBASE_APP_ID="1:123456789:web:abc123",\
+_ADMIN_EMAILS="admin@example.com",\
+_ADMIN_TELEGRAM_BOT_TOKEN="",\
+_ADMIN_TELEGRAM_CHAT_ID="",\
+_CLOUD_SQL_INSTANCE="PROJECT_ID:asia-northeast3:maksoons-dining-db",\
+_DATABASE_URL="postgresql://maksoon:YOUR_PASSWORD@/maksoons_dining?host=/cloudsql/PROJECT_ID:asia-northeast3:maksoons-dining-db"
 ```
 
 ---
