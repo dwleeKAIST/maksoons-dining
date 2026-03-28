@@ -7,7 +7,11 @@ const botQueries = require('../db/queries/bot');
 const wineQueries = require('../db/queries/wines');
 const diaryQueries = require('../db/queries/diary');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _client;
+function getClient() {
+  if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _client;
+}
 const MODEL = 'claude-haiku-4-5-20251001';
 
 const INPUT_COST = 1.00 / 1_000_000;
@@ -393,7 +397,7 @@ ${contextText ? `\n--- 참고 데이터 ---\n${contextText}` : ''}`;
     let finalText = '';
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const response = await client.messages.create({
+      const response = await getClient().messages.create({
         model: MODEL,
         max_tokens: 2048,
         system: systemPrompt,

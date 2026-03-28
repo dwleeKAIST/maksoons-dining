@@ -44,22 +44,9 @@ app.use('/api', apiLimiter);
 // 프로덕션: 빌드된 React 앱 서빙
 app.use(express.static(path.join(__dirname, 'client/dist')));
 
-// API 라우트
-app.use('/api/auth', require('./server/routes/auth'));
-app.use('/api/wines', require('./server/routes/wines'));
-app.use('/api/diary', require('./server/routes/diary'));
-app.use('/api/bot', require('./server/routes/bot'));
-app.use('/api/ocr', require('./server/routes/ocr'));
-app.use('/api/groceries', require('./server/routes/groceries'));
-
-// Health check
+// Health check — registered before route loading so port opens fast
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// SPA 폴백
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/dist/index.html'));
 });
 
 // Start server
@@ -70,6 +57,25 @@ async function start() {
     console.log(`\nMaksoon's Dining 서비스 실행 중`);
     console.log(`포트: ${PORT}`);
     console.log(`환경: ${process.env.NODE_ENV || 'development'}\n`);
+  });
+
+  // Load routes AFTER listen — failures won't prevent port from opening
+  try {
+    app.use('/api/auth', require('./server/routes/auth'));
+    app.use('/api/wines', require('./server/routes/wines'));
+    app.use('/api/diary', require('./server/routes/diary'));
+    app.use('/api/bot', require('./server/routes/bot'));
+    app.use('/api/ocr', require('./server/routes/ocr'));
+    app.use('/api/groceries', require('./server/routes/groceries'));
+    console.log('[server] All routes loaded successfully');
+  } catch (err) {
+    console.error('[server] Route loading error:', err.message);
+    console.error('[server] Some API endpoints may be unavailable');
+  }
+
+  // SPA 폴백 — must come after API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/dist/index.html'));
   });
 
   try {
