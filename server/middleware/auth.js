@@ -10,6 +10,9 @@ if (!admin.apps.length) {
     serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
       ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
       : undefined;
+    if (serviceAccount?.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
   } catch (err) {
     console.error('[auth] Failed to parse FIREBASE_SERVICE_ACCOUNT:', err.message);
     console.error('[auth] Value starts with:', (process.env.FIREBASE_SERVICE_ACCOUNT || '').substring(0, 80));
@@ -23,8 +26,8 @@ if (!admin.apps.length) {
         : { credential: admin.credential.applicationDefault() }
     );
   } catch (err) {
-    console.error('[auth] Firebase Admin initialization failed:', err.message);
-    console.error('[auth] Authentication will not work until this is resolved');
+    console.error('[auth] Firebase init failed:', err.message);
+    admin.initializeApp();
   }
 }
 
