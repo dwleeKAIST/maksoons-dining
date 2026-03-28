@@ -186,6 +186,7 @@ gcloud services enable sqladmin.googleapis.com
 # 개발/테스트용 (db-f1-micro, 저비용)
 gcloud sql instances create maksoons-dining-db \
   --database-version=POSTGRES_16 \
+  --edition=ENTERPRISE \
   --tier=db-f1-micro \
   --region=asia-northeast3 \
   --storage-type=HDD \
@@ -194,6 +195,7 @@ gcloud sql instances create maksoons-dining-db \
 # 운영용 (더 높은 성능이 필요한 경우)
 # gcloud sql instances create maksoons-dining-db \
 #   --database-version=POSTGRES_16 \
+#   --edition=ENTERPRISE \
 #   --tier=db-custom-1-3840 \
 #   --region=asia-northeast3 \
 #   --storage-type=SSD \
