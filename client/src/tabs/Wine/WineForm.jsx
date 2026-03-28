@@ -1,0 +1,275 @@
+import { useState } from 'react';
+import { api } from '../../utils/api';
+
+const WINE_TYPES = ['red', 'white', 'rosé', 'sparkling', 'dessert', 'fortified', 'natural', 'orange'];
+
+export default function WineForm({ wine, onSave, onClose }) {
+  const isEdit = wine && !wine._isNew;
+  const [form, setForm] = useState({
+    name: wine?.name || '',
+    vintage: wine?.vintage || '',
+    region: wine?.region || '',
+    country: wine?.country || '',
+    grape_variety: wine?.grape_variety || '',
+    wine_type: wine?.wine_type || 'red',
+    purchase_price: wine?.purchase_price || '',
+    estimated_price: wine?.estimated_price || '',
+    quantity: wine?.quantity || 1,
+    storage_location: wine?.storage_location || '',
+    memo: wine?.memo || '',
+    purchase_date: wine?.purchase_date || '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return setError('와인 이름을 입력해주세요.');
+    setLoading(true);
+    setError('');
+    const data = {
+      ...form,
+      vintage: form.vintage ? parseInt(form.vintage) : null,
+      purchase_price: form.purchase_price ? parseFloat(form.purchase_price) : null,
+      estimated_price: form.estimated_price ? parseFloat(form.estimated_price) : null,
+      quantity: parseInt(form.quantity) || 1,
+      purchase_date: form.purchase_date || null,
+    };
+    const res = await onSave(data);
+    setLoading(false);
+    if (!res?.ok) {
+      const body = await res?.json().catch(() => ({}));
+      setError(body?.error || '저장 실패');
+    }
+  };
+
+  const handleEstimatePrice = async () => {
+    if (!form.name) return;
+    setEstimating(true);
+    try {
+      const res = await api.post('/api/bot/chat', {
+        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" 와인의 한국 시장 추정 시세를 원(KRW) 단위 숫자만 알려줘. 예: 50000`,
+        history: [],
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const priceMatch = data.reply?.match(/[\d,]+/);
+        if (priceMatch) {
+          handleChange('estimated_price', priceMatch[0].replace(/,/g, ''));
+        }
+      }
+    } catch {}
+    setEstimating(false);
+  };
+
+  const handleAnalyze = async () => {
+    if (!form.name) return;
+    setAnalyzing(true);
+    try {
+      const res = await api.post('/api/bot/chat', {
+        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" (${form.wine_type}, ${form.grape_variety || '품종 미상'}, ${form.region || '산지 미상'}) 와인의 음용 적기를 분석해줘. drinking_window_start(연도), drinking_window_end(연도), recommendation(optimal_now/age_more/drink_soon 중 하나), reason(이유)를 JSON으로만 응답해줘.`,
+        history: [],
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const jsonMatch = data.reply?.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.drinking_window_start) handleChange('drinking_window_start', parsed.drinking_window_start);
+            if (parsed.drinking_window_end) handleChange('drinking_window_end', parsed.drinking_window_end);
+          } catch {}
+        }
+      }
+    } catch {}
+    setAnalyzing(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <h3 className="font-bold text-lg mb-4">{isEdit ? '와인 수정' : '와인 추가'}</h3>
+
+        {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm mb-3">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">와인 이름 *</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => handleChange('name', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">빈티지</label>
+              <input
+                type="number"
+                value={form.vintage}
+                onChange={e => handleChange('vintage', e.target.value)}
+                placeholder="2020"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">타입</label>
+              <select
+                value={form.wine_type}
+                onChange={e => handleChange('wine_type', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              >
+                {WINE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">산지</label>
+              <input
+                type="text"
+                value={form.region}
+                onChange={e => handleChange('region', e.target.value)}
+                placeholder="Bordeaux, Napa..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">국가</label>
+              <input
+                type="text"
+                value={form.country}
+                onChange={e => handleChange('country', e.target.value)}
+                placeholder="프랑스, 이탈리아..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">포도 품종</label>
+            <input
+              type="text"
+              value={form.grape_variety}
+              onChange={e => handleChange('grape_variety', e.target.value)}
+              placeholder="Cabernet Sauvignon, Pinot Noir..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">구입 가격 (원)</label>
+              <input
+                type="number"
+                value={form.purchase_price}
+                onChange={e => handleChange('purchase_price', e.target.value)}
+                placeholder="50000"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">추정 시세 (원)</label>
+              <div className="flex gap-1">
+                <input
+                  type="number"
+                  value={form.estimated_price}
+                  onChange={e => handleChange('estimated_price', e.target.value)}
+                  placeholder="AI 추정"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleEstimatePrice}
+                  disabled={estimating}
+                  className="px-2 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {estimating ? '...' : 'AI'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">수량</label>
+              <input
+                type="number"
+                value={form.quantity}
+                onChange={e => handleChange('quantity', e.target.value)}
+                min="1"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">보관 위치</label>
+              <input
+                type="text"
+                value={form.storage_location}
+                onChange={e => handleChange('storage_location', e.target.value)}
+                placeholder="와인셀러, 냉장고..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">구입일</label>
+            <input
+              type="date"
+              value={form.purchase_date}
+              onChange={e => handleChange('purchase_date', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-400 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">메모</label>
+            <textarea
+              value={form.memo}
+              onChange={e => handleChange('memo', e.target.value)}
+              placeholder="선물받은 와인, 여행 중 구매 등..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm h-16 resize-none focus:ring-1 focus:ring-purple-400 outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="w-full py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm hover:bg-green-100 disabled:opacity-50"
+          >
+            {analyzing ? '분석 중...' : '🤖 AI 음용 적기 분석'}
+          </button>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+            >
+              {loading ? '저장 중...' : (isEdit ? '수정' : '추가')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

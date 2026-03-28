@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: maksoons_dining
+      POSTGRES_USER: maksoon
+      POSTGRES_PASSWORD: maksoon_dev_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U maksoon -d maksoons_dining']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - '8080:8080'
+    environment:
+      PORT: 8080
+      NODE_ENV: development
+      DATABASE_URL: postgresql://maksoon:maksoon_dev_password@db:5432/maksoons_dining
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
