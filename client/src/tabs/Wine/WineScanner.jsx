@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { api } from '../../utils/api';
 
 const MAX_SIZE = 8 * 1024 * 1024; // 8MB
@@ -9,8 +11,12 @@ export default function WineScanner({ onResult, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [crop, setCrop] = useState();
+  const [completedCrop, setCompletedCrop] = useState();
   const cameraRef = useRef();
   const galleryRef = useRef();
+  const imgRef = useRef();
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -26,6 +32,41 @@ export default function WineScanner({ onResult, onClose }) {
       setPreview(reader.result);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCropConfirm = useCallback(() => {
+    if (!completedCrop || !imgRef.current) return;
+    const img = imgRef.current;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = completedCrop.width * scaleX;
+    canvas.height = completedCrop.height * scaleY;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      img,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0, 0,
+      canvas.width, canvas.height
+    );
+
+    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setImage(croppedDataUrl);
+    setPreview(croppedDataUrl);
+    setIsCropping(false);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
+  }, [completedCrop]);
+
+  const handleCropCancel = () => {
+    setIsCropping(false);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
   };
 
   const handleScan = async () => {
@@ -67,13 +108,55 @@ export default function WineScanner({ onResult, onClose }) {
           <>
             {preview ? (
               <div className="mb-4">
-                <img src={preview} alt="스캔 이미지" className="w-full rounded-lg border max-h-64 object-contain" />
-                <button
-                  onClick={() => { setImage(null); setPreview(null); }}
-                  className="text-xs text-gray-400 hover:text-gray-600 mt-1"
-                >
-                  다시 선택
-                </button>
+                {isCropping ? (
+                  <>
+                    <ReactCrop
+                      crop={crop}
+                      onChange={(c) => setCrop(c)}
+                      onComplete={(c) => setCompletedCrop(c)}
+                    >
+                      <img
+                        ref={imgRef}
+                        src={preview}
+                        alt="크롭 이미지"
+                        className="w-full rounded-lg max-h-64 object-contain"
+                      />
+                    </ReactCrop>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={handleCropCancel}
+                        className="flex-1 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-gray-50"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={handleCropConfirm}
+                        disabled={!completedCrop?.width || !completedCrop?.height}
+                        className="flex-1 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        자르기 완료
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <img src={preview} alt="스캔 이미지" className="w-full rounded-lg border max-h-64 object-contain" />
+                    <div className="flex items-center gap-3 mt-1">
+                      <button
+                        onClick={() => { setImage(null); setPreview(null); setIsCropping(false); setCrop(undefined); setCompletedCrop(undefined); }}
+                        className="text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        다시 선택
+                      </button>
+                      <button
+                        onClick={() => setIsCropping(true)}
+                        className="text-xs text-purple-500 hover:text-purple-700"
+                      >
+                        라벨 영역 자르기
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="mb-4 flex gap-2">
@@ -109,18 +192,20 @@ export default function WineScanner({ onResult, onClose }) {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                취소
-              </button>
-              <button
-                onClick={handleScan}
-                disabled={!image || loading}
-                className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-              >
-                {loading ? '스캔 중...' : '스캔 시작'}
-              </button>
-            </div>
+            {!isCropping && (
+              <div className="flex gap-2">
+                <button onClick={onClose} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                  취소
+                </button>
+                <button
+                  onClick={handleScan}
+                  disabled={!image || loading}
+                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {loading ? '스캔 중...' : '스캔 시작'}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -151,7 +236,7 @@ export default function WineScanner({ onResult, onClose }) {
                 닫기
               </button>
               <button
-                onClick={() => { setResults(null); setImage(null); setPreview(null); }}
+                onClick={() => { setResults(null); setImage(null); setPreview(null); setIsCropping(false); setCrop(undefined); setCompletedCrop(undefined); }}
                 className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200"
               >
                 다시 스캔
