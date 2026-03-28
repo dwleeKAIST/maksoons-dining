@@ -39,7 +39,7 @@ export default function Wine() {
   useEffect(() => { fetchWines(); }, [fetchWines]);
 
   const handleSave = async (data) => {
-    const res = editingWine
+    const res = editingWine?.id
       ? await api.patch(`/api/wines/${editingWine.id}`, data)
       : await api.post('/api/wines', data);
     if (res.ok) {
