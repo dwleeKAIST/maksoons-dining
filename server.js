@@ -66,6 +66,12 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 8080;
 
 async function start() {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\nMaksoon's Dining 서비스 실행 중`);
+    console.log(`포트: ${PORT}`);
+    console.log(`환경: ${process.env.NODE_ENV || 'development'}\n`);
+  });
+
   try {
     await migrate();
     console.log('[server] Database migrations completed');
@@ -73,12 +79,6 @@ async function start() {
     console.error('[server] Migration error:', err.message);
     console.log('[server] Continuing without database (check DATABASE_URL)');
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\nMaksoon's Dining 서비스 실행 중`);
-    console.log(`포트: ${PORT}`);
-    console.log(`환경: ${process.env.NODE_ENV || 'development'}\n`);
-  });
 }
 
 start();
