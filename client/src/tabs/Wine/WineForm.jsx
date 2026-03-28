@@ -3,6 +3,18 @@ import { api } from '../../utils/api';
 
 const WINE_TYPES = ['red', 'white', 'rosé', 'sparkling', 'dessert', 'fortified', 'natural', 'orange'];
 
+const REC_BADGE_LABELS = {
+  optimal_now: '지금이 적기',
+  age_more: '더 숙성',
+  drink_soon: '빨리 마시세요',
+};
+
+const REC_BADGE_STYLES = {
+  optimal_now: 'bg-green-100 text-green-700',
+  age_more: 'bg-yellow-100 text-yellow-700',
+  drink_soon: 'bg-red-100 text-red-700',
+};
+
 export default function WineForm({ wine, onSave, onClose }) {
   const isEdit = wine && !wine._isNew;
   const [form, setForm] = useState({
@@ -18,6 +30,10 @@ export default function WineForm({ wine, onSave, onClose }) {
     storage_location: wine?.storage_location || '',
     memo: wine?.memo || '',
     purchase_date: wine?.purchase_date || '',
+    drinking_window_start: wine?.drinking_window_start || '',
+    drinking_window_end: wine?.drinking_window_end || '',
+    drinking_recommendation: wine?.drinking_recommendation || '',
+    recommendation_reason: wine?.recommendation_reason || '',
   });
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
@@ -40,6 +56,10 @@ export default function WineForm({ wine, onSave, onClose }) {
       estimated_price: form.estimated_price ? parseFloat(form.estimated_price) : null,
       quantity: parseInt(form.quantity) || 1,
       purchase_date: form.purchase_date || null,
+      drinking_window_start: form.drinking_window_start ? parseInt(form.drinking_window_start) : null,
+      drinking_window_end: form.drinking_window_end ? parseInt(form.drinking_window_end) : null,
+      drinking_recommendation: form.drinking_recommendation || null,
+      recommendation_reason: form.recommendation_reason || null,
     };
     const res = await onSave(data);
     setLoading(false);
@@ -71,6 +91,7 @@ export default function WineForm({ wine, onSave, onClose }) {
   const handleAnalyze = async () => {
     if (!form.name) return;
     setAnalyzing(true);
+    setError('');
     try {
       const res = await api.post('/api/bot/chat', {
         message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" (${form.wine_type}, ${form.grape_variety || '품종 미상'}, ${form.region || '산지 미상'}) 와인의 음용 적기를 분석해줘. drinking_window_start(연도), drinking_window_end(연도), recommendation(optimal_now/age_more/drink_soon 중 하나), reason(이유)를 JSON으로만 응답해줘.`,
@@ -84,10 +105,21 @@ export default function WineForm({ wine, onSave, onClose }) {
             const parsed = JSON.parse(jsonMatch[0]);
             if (parsed.drinking_window_start) handleChange('drinking_window_start', parsed.drinking_window_start);
             if (parsed.drinking_window_end) handleChange('drinking_window_end', parsed.drinking_window_end);
-          } catch {}
+            if (parsed.recommendation) handleChange('drinking_recommendation', parsed.recommendation);
+            if (parsed.reason) handleChange('recommendation_reason', parsed.reason);
+          } catch {
+            setError('AI 응답을 파싱할 수 없습니다. 다시 시도해주세요.');
+          }
+        } else {
+          setError('AI 응답 형식이 올바르지 않습니다.');
         }
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body?.error || 'AI 분석 요청에 실패했습니다.');
       }
-    } catch {}
+    } catch {
+      setError('AI 분석 중 오류가 발생했습니다.');
+    }
     setAnalyzing(false);
   };
 
@@ -251,6 +283,29 @@ export default function WineForm({ wine, onSave, onClose }) {
           >
             {analyzing ? '분석 중...' : '🤖 AI 음용 적기 분석'}
           </button>
+
+          {(form.drinking_recommendation || form.drinking_window_start) && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-green-800">음용 적기 분석 결과</p>
+              <div className="flex flex-wrap gap-2 items-center">
+                {form.drinking_recommendation && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    REC_BADGE_STYLES[form.drinking_recommendation] || 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {REC_BADGE_LABELS[form.drinking_recommendation] || form.drinking_recommendation}
+                  </span>
+                )}
+                {form.drinking_window_start && form.drinking_window_end && (
+                  <span className="text-sm text-green-700">
+                    {form.drinking_window_start}년 ~ {form.drinking_window_end}년
+                  </span>
+                )}
+              </div>
+              {form.recommendation_reason && (
+                <p className="text-xs text-gray-600">{form.recommendation_reason}</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             <button
