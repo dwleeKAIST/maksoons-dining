@@ -9,7 +9,8 @@ export default function WineScanner({ onResult, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState(null);
-  const fileRef = useRef();
+  const cameraRef = useRef();
+  const galleryRef = useRef();
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -75,19 +76,33 @@ export default function WineScanner({ onResult, onClose }) {
                 </button>
               </div>
             ) : (
-              <div className="mb-4">
+              <div className="mb-4 flex gap-2">
                 <button
-                  onClick={() => fileRef.current?.click()}
-                  className="w-full py-8 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-purple-400 hover:text-purple-500 transition-colors"
+                  onClick={() => cameraRef.current?.click()}
+                  className="flex-1 py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-purple-400 hover:text-purple-500 transition-colors"
                 >
                   <span className="text-2xl block mb-1">📷</span>
-                  <span className="text-sm">이미지 선택 / 촬영</span>
+                  <span className="text-sm">카메라로 촬영</span>
+                </button>
+                <button
+                  onClick={() => galleryRef.current?.click()}
+                  className="flex-1 py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-purple-400 hover:text-purple-500 transition-colors"
+                >
+                  <span className="text-2xl block mb-1">🖼️</span>
+                  <span className="text-sm">갤러리에서 선택</span>
                 </button>
                 <input
-                  ref={fileRef}
+                  ref={cameraRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <input
+                  ref={galleryRef}
+                  type="file"
+                  accept="image/*"
                   onChange={handleFileChange}
                   className="hidden"
                 />
