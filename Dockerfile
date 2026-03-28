@@ -4,11 +4,11 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Install frontend dependencies
 COPY client/package*.json client/
-RUN cd client && npm ci
+RUN cd client && npm install
 
 # Copy source
 COPY . .
