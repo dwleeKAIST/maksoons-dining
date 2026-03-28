@@ -6,8 +6,17 @@ const { authenticate, requireHousehold } = require('../middleware/auth');
 const { getUserSettings } = require('../db/queries/users');
 const botQueries = require('../db/queries/bot');
 
-const visionClient = new vision.ImageAnnotatorClient();
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _visionClient;
+function getVisionClient() {
+  if (!_visionClient) _visionClient = new vision.ImageAnnotatorClient();
+  return _visionClient;
+}
+
+let _anthropic;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 const MODEL = 'claude-haiku-4-5-20251001';
 const INPUT_COST = 0.80 / 1_000_000;
 const OUTPUT_COST = 4.00 / 1_000_000;
@@ -33,7 +42,7 @@ router.post('/scan-wine', async (req, res) => {
     // Google Cloud Vision OCR
     let ocrText;
     try {
-      const [result] = await visionClient.textDetection(imageBuffer);
+      const [result] = await getVisionClient().textDetection(imageBuffer);
       ocrText = result.fullTextAnnotation?.text;
       if (!ocrText) {
         return res.status(400).json({ error: '이미지에서 텍스트를 인식할 수 없습니다.' });
@@ -46,7 +55,7 @@ router.post('/scan-wine', async (req, res) => {
     }
 
     // Claude로 와인 정보 파싱
-    const response = await anthropic.messages.create({
+    const response = await getAnthropic().messages.create({
       model: MODEL,
       max_tokens: 1024,
       messages: [

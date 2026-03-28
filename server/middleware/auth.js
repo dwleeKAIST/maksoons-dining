@@ -16,11 +16,16 @@ if (!admin.apps.length) {
     serviceAccount = undefined;
   }
 
-  admin.initializeApp(
-    serviceAccount
-      ? { credential: admin.credential.cert(serviceAccount) }
-      : { credential: admin.credential.applicationDefault() }
-  );
+  try {
+    admin.initializeApp(
+      serviceAccount
+        ? { credential: admin.credential.cert(serviceAccount) }
+        : { credential: admin.credential.applicationDefault() }
+    );
+  } catch (err) {
+    console.error('[auth] Firebase Admin initialization failed:', err.message);
+    console.error('[auth] Authentication will not work until this is resolved');
+  }
 }
 
 async function findOrCreateUser(decodedToken) {
