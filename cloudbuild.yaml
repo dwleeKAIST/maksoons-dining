@@ -35,14 +35,9 @@ steps:
       - '--min-instances=0'
       - '--max-instances=3'
       - '--port=8080'
-      - '--set-env-vars=NODE_ENV=production,PORTAL_NAME=Maksoons Dining'
-      - '--set-env-vars=ANTHROPIC_API_KEY=${_ANTHROPIC_API_KEY}'
-      - '--set-env-vars=FIREBASE_SERVICE_ACCOUNT=${_FIREBASE_SERVICE_ACCOUNT}'
-      - '--set-env-vars=ADMIN_EMAILS=${_ADMIN_EMAILS}'
-      - '--set-env-vars=ADMIN_TELEGRAM_BOT_TOKEN=${_ADMIN_TELEGRAM_BOT_TOKEN}'
-      - '--set-env-vars=ADMIN_TELEGRAM_CHAT_ID=${_ADMIN_TELEGRAM_CHAT_ID}'
+      - '--set-env-vars=NODE_ENV=production,PORTAL_NAME=Maksoons Dining,ANTHROPIC_API_KEY=${_ANTHROPIC_API_KEY},ADMIN_TELEGRAM_BOT_TOKEN=${_ADMIN_TELEGRAM_BOT_TOKEN},ADMIN_TELEGRAM_CHAT_ID=${_ADMIN_TELEGRAM_CHAT_ID}'
+      - '--update-env-vars=^||^FIREBASE_SERVICE_ACCOUNT=${_FIREBASE_SERVICE_ACCOUNT}||ADMIN_EMAILS=${_ADMIN_EMAILS}||DATABASE_URL=${_DATABASE_URL}'
       - '--add-cloudsql-instances=${_CLOUD_SQL_INSTANCE}'
-      - '--set-env-vars=DATABASE_URL=${_DATABASE_URL}'
 
 images:
   - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/maksoons-dining/app:$COMMIT_SHA'
