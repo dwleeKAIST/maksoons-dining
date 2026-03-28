@@ -1,6 +1,6 @@
 {
   "name": "maksoons-dining",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Maksoon's Dining - 우리집 메뉴판 (와인 & 식재료 관리)",
   "main": "server.js",
   "scripts": {
