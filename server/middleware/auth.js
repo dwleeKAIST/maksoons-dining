@@ -5,9 +5,16 @@ const { getUserMembership } = require('../db/queries/users');
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : undefined;
+  let serviceAccount;
+  try {
+    serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      : undefined;
+  } catch (err) {
+    console.error('[auth] Failed to parse FIREBASE_SERVICE_ACCOUNT:', err.message);
+    console.error('[auth] Value starts with:', (process.env.FIREBASE_SERVICE_ACCOUNT || '').substring(0, 80));
+    serviceAccount = undefined;
+  }
 
   admin.initializeApp(
     serviceAccount
