@@ -47,3 +47,6 @@ steps:
 images:
   - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/maksoons-dining/app:$COMMIT_SHA'
   - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/maksoons-dining/app:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
