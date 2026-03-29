@@ -3,6 +3,7 @@ const router = express.Router();
 const Anthropic = require('@anthropic-ai/sdk');
 const vision = require('@google-cloud/vision');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 const { authenticate, requireHousehold } = require('../middleware/auth');
 const { getUserSettings } = require('../db/queries/users');
 const botQueries = require('../db/queries/bot');
@@ -33,7 +34,7 @@ async function uploadLabelImage(householdId, base64Data) {
     const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
     if (!bucketName) return null;
     const bucket = admin.storage().bucket(bucketName);
-    const fileName = `wine-labels/${householdId}/${Date.now()}.jpg`;
+    const fileName = `wine-labels/${householdId}/${Date.now()}_${crypto.randomBytes(4).toString('hex')}.jpg`;
     const file = bucket.file(fileName);
     const imageBuffer = Buffer.from(base64Data, 'base64');
     await file.save(imageBuffer, { contentType: 'image/jpeg', metadata: { cacheControl: 'public, max-age=31536000' } });
@@ -122,7 +123,7 @@ JSON만 응답하세요.`,
       return res.status(400).json({ error: 'AI가 와인 정보를 파싱하지 못했습니다.', raw_text: ocrText });
     }
 
-    // Firebase Storage에 라벨 이미지 업로드 (비동기, 실패해도 진행)
+    // Firebase Storage에 라벨 이미지 업로드 (실패해도 진행)
     const imageUrl = await uploadLabelImage(req.user.householdId, base64Data);
 
     res.json({
