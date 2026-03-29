@@ -126,40 +126,24 @@ export default function WineForm({ wine, onSave, onClose }) {
     setError('');
     try {
       const res = await api.post('/api/bot/chat', {
-        message: `와인 음용 적기 분석 요청. 와인: "${form.name}${form.vintage ? ` ${form.vintage}` : ''}", 타입: ${form.wine_type}, 품종: ${form.grape_variety || '미상'}, 산지: ${form.region || '미상'}. 다른 말 없이 아래 JSON 형식으로만 응답해. 반드시 JSON만: {"drinking_window_start": 연도숫자, "drinking_window_end": 연도숫자, "recommendation": "optimal_now 또는 age_more 또는 drink_soon", "reason": "이유"}`,
+        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" (${form.wine_type}, ${form.grape_variety || '품종 미상'}, ${form.region || '산지 미상'}) 와인의 음용 적기를 분석해줘. drinking_window_start(연도), drinking_window_end(연도), recommendation(optimal_now/age_more/drink_soon 중 하나), reason(이유)를 JSON으로만 응답해줘.`,
         history: [],
       });
       if (res.ok) {
         const data = await res.json();
-        const reply = data.reply || '';
-        let success = false;
-
-        // 1차: JSON 파싱 시도
-        const jsonMatch = reply.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
+        const jsonMatch = data.reply?.match(/\{[\s\S]*?\}/);
         if (jsonMatch) {
           try {
             const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.drinking_window_start) { handleChange('drinking_window_start', parsed.drinking_window_start); success = true; }
-            if (parsed.drinking_window_end) { handleChange('drinking_window_end', parsed.drinking_window_end); success = true; }
+            if (parsed.drinking_window_start) handleChange('drinking_window_start', parsed.drinking_window_start);
+            if (parsed.drinking_window_end) handleChange('drinking_window_end', parsed.drinking_window_end);
             if (parsed.recommendation) handleChange('drinking_recommendation', parsed.recommendation);
             if (parsed.reason) handleChange('recommendation_reason', parsed.reason);
-          } catch { /* fallback below */ }
-        }
-
-        // 2차: JSON 파싱 실패 시 개별 필드 regex 추출
-        if (!success) {
-          const startMatch = reply.match(/drinking_window_start["'\s:]+(\d{4})/);
-          const endMatch = reply.match(/drinking_window_end["'\s:]+(\d{4})/);
-          const recMatch = reply.match(/recommendation["'\s:]+(optimal_now|age_more|drink_soon)/);
-          const reasonMatch = reply.match(/reason["'\s:]+["']([^"']+)["']/);
-          if (startMatch) { handleChange('drinking_window_start', startMatch[1]); success = true; }
-          if (endMatch) { handleChange('drinking_window_end', endMatch[1]); success = true; }
-          if (recMatch) handleChange('drinking_recommendation', recMatch[1]);
-          if (reasonMatch) handleChange('recommendation_reason', reasonMatch[1]);
-        }
-
-        if (!success) {
-          setError('AI 응답에서 음용 적기 정보를 추출할 수 없습니다. 다시 시도해주세요.');
+          } catch {
+            setError('AI 응답을 파싱할 수 없습니다. 다시 시도해주세요.');
+          }
+        } else {
+          setError('AI 응답 형식이 올바르지 않습니다.');
         }
       } else {
         const body = await res.json().catch(() => ({}));
