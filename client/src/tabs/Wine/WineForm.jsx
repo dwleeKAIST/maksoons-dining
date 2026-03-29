@@ -125,23 +125,24 @@ export default function WineForm({ wine, onSave, onClose }) {
     setAnalyzing(true);
     setError('');
     try {
-      const res = await api.post('/api/bot/chat', {
-        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" (${form.wine_type}, ${form.grape_variety || '품종 미상'}, ${form.region || '산지 미상'}) 와인의 음용 적기를 분석해줘. drinking_window_start(연도), drinking_window_end(연도), recommendation(optimal_now/age_more/drink_soon 중 하나), reason(이유)를 JSON으로만 응답해줘.`,
-        history: [],
+      const res = await api.post('/api/bot/structured', {
+        prompt: `와인: "${form.name}${form.vintage ? ` ${form.vintage}` : ''}", 타입: ${form.wine_type}, 품종: ${form.grape_variety || '품종 미상'}, 산지: ${form.region || '산지 미상'}
+이 와인의 음용 적기를 분석해서 다음 JSON으로 응답: {"drinking_window_start": 연도, "drinking_window_end": 연도, "recommendation": "optimal_now|age_more|drink_soon", "reason": "이유"}`,
       });
       if (res.ok) {
         const data = await res.json();
-        const jsonMatch = data.reply?.match(/\{[\s\S]*?\}/);
-        if (jsonMatch) {
-          try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.drinking_window_start) handleChange('drinking_window_start', parsed.drinking_window_start);
-            if (parsed.drinking_window_end) handleChange('drinking_window_end', parsed.drinking_window_end);
-            if (parsed.recommendation) handleChange('drinking_recommendation', parsed.recommendation);
-            if (parsed.reason) handleChange('recommendation_reason', parsed.reason);
-          } catch {
-            setError('AI 응답을 파싱할 수 없습니다. 다시 시도해주세요.');
-          }
+        const reply = (data.reply || '').trim();
+        let parsed = null;
+        try { parsed = JSON.parse(reply); } catch {}
+        if (!parsed) {
+          const m = reply.match(/\{[\s\S]*\}/);
+          if (m) try { parsed = JSON.parse(m[0]); } catch {}
+        }
+        if (parsed && (parsed.drinking_window_start || parsed.drinking_window_end)) {
+          if (parsed.drinking_window_start) handleChange('drinking_window_start', parsed.drinking_window_start);
+          if (parsed.drinking_window_end) handleChange('drinking_window_end', parsed.drinking_window_end);
+          if (parsed.recommendation) handleChange('drinking_recommendation', parsed.recommendation);
+          if (parsed.reason) handleChange('recommendation_reason', parsed.reason);
         } else {
           setError('AI 응답 형식이 올바르지 않습니다.');
         }
