@@ -34,6 +34,7 @@ export default function WineForm({ wine, onSave, onClose }) {
     drinking_window_end: wine?.drinking_window_end || '',
     drinking_recommendation: wine?.drinking_recommendation || '',
     recommendation_reason: wine?.recommendation_reason || '',
+    label_image_url: wine?.label_image_url || '',
   });
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
@@ -60,6 +61,7 @@ export default function WineForm({ wine, onSave, onClose }) {
       drinking_window_end: form.drinking_window_end ? parseInt(form.drinking_window_end) : null,
       drinking_recommendation: form.drinking_recommendation || null,
       recommendation_reason: form.recommendation_reason || null,
+      label_image_url: form.label_image_url || null,
     };
     const res = await onSave(data);
     setLoading(false);
