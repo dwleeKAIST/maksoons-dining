@@ -32,17 +32,20 @@ function getCurrentMonth() {
 async function uploadLabelImage(householdId, base64Data) {
   try {
     const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
-    if (!bucketName) return null;
+    if (!bucketName) {
+      console.warn('[ocr] No FIREBASE_STORAGE_BUCKET configured — skipping image upload');
+      return { url: null, error: 'FIREBASE_STORAGE_BUCKET 환경변수가 설정되지 않았습니다.' };
+    }
     const bucket = admin.storage().bucket(bucketName);
     const fileName = `wine-labels/${householdId}/${Date.now()}_${crypto.randomBytes(4).toString('hex')}.jpg`;
     const file = bucket.file(fileName);
     const imageBuffer = Buffer.from(base64Data, 'base64');
     await file.save(imageBuffer, { contentType: 'image/jpeg', metadata: { cacheControl: 'public, max-age=31536000' } });
     await file.makePublic();
-    return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+    return { url: `https://storage.googleapis.com/${bucketName}/${fileName}`, error: null };
   } catch (err) {
-    console.error('[ocr] Image upload failed:', err.message);
-    return null;
+    console.error('[ocr] Image upload failed:', err.code || '', err.message);
+    return { url: null, error: `이미지 업로드 실패: ${err.message}` };
   }
 }
 
@@ -124,13 +127,14 @@ JSON만 응답하세요.`,
     }
 
     // Firebase Storage에 라벨 이미지 업로드 (실패해도 진행)
-    const imageUrl = await uploadLabelImage(req.user.householdId, base64Data);
+    const uploadResult = await uploadLabelImage(req.user.householdId, base64Data);
 
     res.json({
       ocr_text: ocrText,
       parsed_wines: parsed.wines || [],
-      image_url: imageUrl,
-      image_upload_failed: !imageUrl,
+      image_url: uploadResult.url,
+      image_upload_failed: !uploadResult.url,
+      image_upload_error: uploadResult.error,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd },
     });
   } catch (err) {
