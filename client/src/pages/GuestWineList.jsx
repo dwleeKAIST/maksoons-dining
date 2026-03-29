@@ -230,6 +230,15 @@ export default function GuestWineList() {
       </header>
 
       <main className="p-4 sm:p-6 max-w-7xl mx-auto">
+        {/* 환영 안내 */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+          <p className="text-gray-700 text-sm leading-relaxed">
+            안녕하세요, <b>은미&amp;막순이네</b>에 오신 것을 환영합니다.
+            <br />저희 셀러에서 잠들어 있는 와인들이 좋은 자리에서 열리길 기다리고 있어요.
+            <br />부어라 마셔라, 여기선 눌러라 마셔라! 마음에 드는 와인이 있다면 망설이지 마세요 🍷
+          </p>
+        </div>
+
         <div className={showChat ? 'grid grid-cols-1 lg:grid-cols-3 gap-6' : ''}>
           <div className={showChat ? 'lg:col-span-2' : ''}>
             {/* 라벨 토글 */}
