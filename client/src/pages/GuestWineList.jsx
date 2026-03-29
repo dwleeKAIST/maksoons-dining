@@ -142,6 +142,27 @@ export default function GuestWineList() {
   const [search, setSearch] = useState('');
   const [showLabels, setShowLabels] = useState(true);
   const [showChat, setShowChat] = useState(false);
+  const [requestState, setRequestState] = useState({}); // { [wineId]: 'loading' | 'done' | 'error' }
+
+  const handleRequest = async (wineId) => {
+    setRequestState(prev => ({ ...prev, [wineId]: 'loading' }));
+    try {
+      const res = await fetch(`/api/guest/${token}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wine_id: wineId }),
+      });
+      if (res.ok) {
+        setRequestState(prev => ({ ...prev, [wineId]: 'done' }));
+      } else {
+        setRequestState(prev => ({ ...prev, [wineId]: 'error' }));
+        setTimeout(() => setRequestState(prev => ({ ...prev, [wineId]: undefined })), 3000);
+      }
+    } catch {
+      setRequestState(prev => ({ ...prev, [wineId]: 'error' }));
+      setTimeout(() => setRequestState(prev => ({ ...prev, [wineId]: undefined })), 3000);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/guest/${token}/info`)
@@ -325,6 +346,27 @@ export default function GuestWineList() {
                     {wine.recommendation_reason && (
                       <p className="text-xs text-gray-400 truncate">💡 {wine.recommendation_reason}</p>
                     )}
+
+                    <div className="mt-3 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => handleRequest(wine.id)}
+                        disabled={requestState[wine.id] === 'loading' || requestState[wine.id] === 'done'}
+                        className={`w-full py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          requestState[wine.id] === 'done'
+                            ? 'bg-green-50 text-green-600'
+                            : requestState[wine.id] === 'error'
+                            ? 'bg-red-50 text-red-500'
+                            : requestState[wine.id] === 'loading'
+                            ? 'bg-purple-50 text-purple-400'
+                            : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                        }`}
+                      >
+                        {requestState[wine.id] === 'loading' ? '막순이에게 요청 중...'
+                          : requestState[wine.id] === 'done' ? '요청 완료!'
+                          : requestState[wine.id] === 'error' ? '전송 실패'
+                          : '🍷 마시고 싶어요'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

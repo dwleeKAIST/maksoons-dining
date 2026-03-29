@@ -4,6 +4,7 @@ const householdQueries = require('../db/queries/household');
 const wineQueries = require('../db/queries/wines');
 const botQueries = require('../db/queries/bot');
 const { getUserSettings } = require('../db/queries/users');
+const { sendTelegramMessage, sendTelegramPhoto } = require('../utils/telegram');
 
 // 게스트 토큰 검증 미들웨어
 async function resolveGuestToken(req, res, next) {
@@ -51,6 +52,54 @@ router.get('/:token/filters', resolveGuestToken, async (req, res) => {
     res.json(options);
   } catch (err) {
     console.error('[guest] filters error:', err.message);
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
+// POST /api/guest/:token/request — 마시고 싶어요 (텔레그램 알림)
+router.post('/:token/request', resolveGuestToken, async (req, res) => {
+  try {
+    const { wine_id } = req.body;
+    if (!wine_id) return res.status(400).json({ error: '와인 ID가 필요합니다.' });
+
+    const wine = await wineQueries.getWineById(parseInt(wine_id), req.household.id);
+    if (!wine) return res.status(404).json({ error: '와인을 찾을 수 없습니다.' });
+
+    const ownerId = req.household.owner_id;
+    const settings = await getUserSettings(ownerId);
+
+    if (!settings?.telegram_enabled || !settings?.telegram_bot_token || !settings?.telegram_chat_id) {
+      return res.status(400).json({ error: '텔레그램 알림이 설정되지 않았습니다.' });
+    }
+
+    const caption = `🍷 <b>마시고 싶어요!</b>\n\n` +
+      `<b>${wine.name}</b>${wine.vintage ? ` ${wine.vintage}` : ''}\n` +
+      `${wine.wine_type ? `종류: ${wine.wine_type}` : ''}` +
+      `${wine.region ? ` · ${wine.region}` : ''}` +
+      `${wine.country ? ` · ${wine.country}` : ''}\n` +
+      `${wine.grape_variety ? `품종: ${wine.grape_variety}\n` : ''}` +
+      `${wine.drinking_recommendation && wine.drinking_recommendation !== 'unknown' ? `추천: ${wine.drinking_recommendation}\n` : ''}` +
+      `${wine.storage_location ? `보관: ${wine.storage_location}\n` : ''}` +
+      `수량: ${wine.quantity}병`;
+
+    let sent = false;
+    if (wine.label_image_url) {
+      sent = await sendTelegramPhoto(settings.telegram_bot_token, settings.telegram_chat_id, wine.label_image_url, caption);
+      // sendPhoto가 실패하면 (이미지 URL 문제 등) 텍스트로 폴백
+      if (!sent) {
+        sent = await sendTelegramMessage(settings.telegram_bot_token, settings.telegram_chat_id, caption);
+      }
+    } else {
+      sent = await sendTelegramMessage(settings.telegram_bot_token, settings.telegram_chat_id, caption);
+    }
+
+    if (!sent) {
+      return res.status(500).json({ error: '텔레그램 전송에 실패했습니다.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[guest] request error:', err.message);
     res.status(500).json({ error: '서버 오류' });
   }
 });
