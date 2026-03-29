@@ -312,51 +312,51 @@ export default function GuestWineList() {
                 <p>등록된 와인이 없습니다.</p>
               </div>
             ) : (
-              <div className={`grid gap-3 sm:grid-cols-2 ${showChat ? '' : 'lg:grid-cols-3'}`}>
+              <div className={`grid gap-3 ${showChat ? '' : 'sm:grid-cols-2'}`}>
                 {wines.map(wine => (
-                  <div key={wine.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                    {showLabels && wine.label_image_url && (
-                      <img
-                        src={wine.label_image_url}
-                        alt={`${wine.name} 라벨`}
-                        className="w-full h-40 object-contain rounded-lg bg-gray-50 mb-2"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    )}
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">{wine.name}</h3>
-                        <p className="text-sm text-gray-500">
+                  <div key={wine.id} className="bg-white rounded-xl border border-gray-200 p-3 hover:shadow-md transition-shadow">
+                    <div className="flex gap-3">
+                      {showLabels && wine.label_image_url && (
+                        <img
+                          src={wine.label_image_url}
+                          alt={`${wine.name} 라벨`}
+                          className="w-24 h-32 shrink-0 object-cover rounded-lg bg-gray-50"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1.5 mb-1">
+                          <h3 className="font-medium text-gray-900 text-sm leading-tight">{wine.name}</h3>
+                          <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
+                            {wine.wine_type}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-1.5">
                           {wine.vintage && <span>{wine.vintage} · </span>}
                           {wine.region && <span>{wine.region}</span>}
                           {wine.country && <span> · {wine.country}</span>}
                           {wine.grape_variety && <span> · {wine.grape_variety}</span>}
                         </p>
+                        <div className="flex flex-wrap gap-1 mb-1.5">
+                          {wine.drinking_recommendation && REC_BADGES[wine.drinking_recommendation] && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${REC_BADGES[wine.drinking_recommendation].cls}`}>
+                              {REC_BADGES[wine.drinking_recommendation].label}
+                            </span>
+                          )}
+                          {(wine.drinking_window_start || wine.drinking_window_end) && (
+                            <span className="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full">
+                              {wine.drinking_window_start || '?'}~{wine.drinking_window_end || '?'}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-gray-400">수량: {wine.quantity}</span>
+                        </div>
+                        {wine.recommendation_reason && (
+                          <p className="text-[10px] text-gray-400 line-clamp-2">💡 {wine.recommendation_reason}</p>
+                        )}
                       </div>
-                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
-                        {wine.wine_type}
-                      </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {wine.drinking_recommendation && REC_BADGES[wine.drinking_recommendation] && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${REC_BADGES[wine.drinking_recommendation].cls}`}>
-                          {REC_BADGES[wine.drinking_recommendation].label}
-                        </span>
-                      )}
-                      {(wine.drinking_window_start || wine.drinking_window_end) && (
-                        <span className="text-xs text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">
-                          {wine.drinking_window_start || '?'}~{wine.drinking_window_end || '?'}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">수량: {wine.quantity}</span>
-                    </div>
-
-                    {wine.recommendation_reason && (
-                      <p className="text-xs text-gray-400 truncate">💡 {wine.recommendation_reason}</p>
-                    )}
-
-                    <div className="mt-3 pt-2 border-t border-gray-100">
+                    <div className="mt-2 pt-2 border-t border-gray-100">
                       <button
                         onClick={() => handleRequest(wine.id)}
                         disabled={requestState[wine.id] === 'loading' || requestState[wine.id] === 'done'}
