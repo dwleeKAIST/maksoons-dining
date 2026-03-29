@@ -132,6 +132,17 @@ export default function WineForm({ wine, onSave, onClose }) {
 
         {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm mb-3">{error}</div>}
 
+        {form.label_image_url && (
+          <div className="mb-3">
+            <p className="text-sm text-gray-500 mb-1">라벨 사진</p>
+            <img
+              src={form.label_image_url}
+              alt="와인 라벨"
+              className="w-full h-40 object-contain rounded-lg bg-gray-50 border"
+            />
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">와인 이름 *</label>

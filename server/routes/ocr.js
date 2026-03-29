@@ -130,6 +130,7 @@ JSON만 응답하세요.`,
       ocr_text: ocrText,
       parsed_wines: parsed.wines || [],
       image_url: imageUrl,
+      image_upload_failed: !imageUrl,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd },
     });
   } catch (err) {
