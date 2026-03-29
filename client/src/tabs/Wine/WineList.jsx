@@ -178,7 +178,7 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
                 )}
                 <span className="text-xs text-gray-400">수량: {wine.quantity}</span>
                 {wine.purchase_price && <span className="text-xs text-gray-400">구입가: {Number(wine.purchase_price).toLocaleString()}원</span>}
-                {wine.estimated_price && <span className="text-xs text-blue-400">시세: ~{Number(wine.estimated_price).toLocaleString()}원</span>}
+                {wine.estimated_price && <span className="text-xs text-blue-400">시세: ~{Number(wine.estimated_price).toLocaleString()}원{wine.price_source && <span className="text-gray-400"> ({wine.price_source})</span>}</span>}
               </div>
 
               {wine.memo && <p className="text-xs text-gray-400 mb-2 truncate">📝 {wine.memo}</p>}

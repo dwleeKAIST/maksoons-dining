@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../../utils/api';
 
 const WINE_TYPES = ['red', 'white', 'rosé', 'sparkling', 'dessert', 'fortified', 'natural', 'orange'];
@@ -35,11 +35,13 @@ export default function WineForm({ wine, onSave, onClose }) {
     drinking_recommendation: wine?.drinking_recommendation || '',
     recommendation_reason: wine?.recommendation_reason || '',
     label_image_url: wine?.label_image_url || '',
+    price_source: wine?.price_source || '',
   });
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
+  const autoAnalyzed = useRef(false);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -62,6 +64,7 @@ export default function WineForm({ wine, onSave, onClose }) {
       drinking_recommendation: form.drinking_recommendation || null,
       recommendation_reason: form.recommendation_reason || null,
       label_image_url: form.label_image_url || null,
+      price_source: form.price_source || null,
     };
     const res = await onSave(data);
     setLoading(false);
@@ -76,14 +79,37 @@ export default function WineForm({ wine, onSave, onClose }) {
     setEstimating(true);
     try {
       const res = await api.post('/api/bot/chat', {
-        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" 와인의 한국 시장 추정 시세를 원(KRW) 단위 숫자만 알려줘. 예: 50000`,
+        message: `"${form.name}${form.vintage ? ` ${form.vintage}` : ''}" 와인의 한국 시장 추정 시세를 알려줘. 반드시 JSON으로만 응답해. 형식: {"price": 숫자, "source": "출처(예: 와인서처 평균가, Vivino 참고가, 일반 시세 추정 등)"}. 빈티지 연도를 가격으로 혼동하지 마. 가격은 원(KRW) 단위.`,
         history: [],
       });
       if (res.ok) {
         const data = await res.json();
-        const priceMatch = data.reply?.match(/[\d,]+/);
-        if (priceMatch) {
-          handleChange('estimated_price', priceMatch[0].replace(/,/g, ''));
+        const reply = data.reply || '';
+        const jsonMatch = reply.match(/\{[\s\S]*?\}/);
+        let parsed = false;
+        if (jsonMatch) {
+          try {
+            const obj = JSON.parse(jsonMatch[0]);
+            if (obj.price) {
+              handleChange('estimated_price', String(obj.price));
+              handleChange('price_source', obj.source || 'AI 추정');
+              parsed = true;
+            }
+          } catch {}
+        }
+        if (!parsed) {
+          const vintageYear = form.vintage ? Number(form.vintage) : null;
+          const allNumbers = (reply.match(/[\d,]+/g) || [])
+            .map(s => s.replace(/,/g, ''))
+            .filter(s => s.length > 0)
+            .map(Number)
+            .filter(n => n >= 1000);
+          const nonVintage = allNumbers.filter(n => n !== vintageYear);
+          const price = nonVintage.length > 0 ? nonVintage[0] : allNumbers[0];
+          if (price) {
+            handleChange('estimated_price', String(price));
+            handleChange('price_source', 'AI 추정');
+          }
         }
       }
     } catch {}
@@ -124,6 +150,19 @@ export default function WineForm({ wine, onSave, onClose }) {
     }
     setAnalyzing(false);
   };
+
+  useEffect(() => {
+    if (
+      isEdit &&
+      form.name &&
+      !autoAnalyzed.current &&
+      (!form.drinking_recommendation || form.drinking_recommendation === 'unknown') &&
+      !form.drinking_window_start
+    ) {
+      autoAnalyzed.current = true;
+      handleAnalyze();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

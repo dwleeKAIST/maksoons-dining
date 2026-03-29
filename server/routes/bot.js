@@ -290,7 +290,7 @@ async function executeTool(toolName, toolInput, householdId, userId) {
       return JSON.stringify({
         wine_name: toolInput.wine_name,
         vintage: toolInput.vintage,
-        instruction: '이 와인의 한국 시장 기준 추정 시세를 원(KRW) 단위로 알려주세요. 정확한 가격이 아닌 어림값입니다.',
+        instruction: '이 와인의 한국 시장 기준 추정 시세를 JSON으로 응답하세요. 형식: {"price": 숫자(KRW), "source": "출처 설명"}. 빈티지 연도를 가격 숫자로 혼동하지 마세요. 정확한 가격이 아닌 어림값입니다.',
       });
     }
 

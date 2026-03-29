@@ -64,8 +64,8 @@ async function addWine(householdId, userId, data) {
     `INSERT INTO wines (household_id, added_by, name, vintage, region, country, grape_variety,
       wine_type, purchase_price, estimated_price, quantity, storage_location, memo,
       purchase_date, drinking_window_start, drinking_window_end,
-      drinking_recommendation, recommendation_reason, label_image_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      drinking_recommendation, recommendation_reason, label_image_url, price_source)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      RETURNING *`,
     [
       householdId, userId, data.name, data.vintage || null,
@@ -75,6 +75,7 @@ async function addWine(householdId, userId, data) {
       data.purchase_date || null, data.drinking_window_start || null,
       data.drinking_window_end || null, data.drinking_recommendation || 'unknown',
       data.recommendation_reason || null, data.label_image_url || null,
+      data.price_source || null,
     ]
   );
 }
@@ -88,6 +89,7 @@ async function updateWine(id, householdId, data) {
     'purchase_price', 'estimated_price', 'quantity', 'storage_location', 'memo',
     'purchase_date', 'drinking_window_start', 'drinking_window_end',
     'drinking_recommendation', 'recommendation_reason', 'is_consumed', 'label_image_url',
+    'price_source',
   ];
   for (const key of allowed) {
     if (data[key] !== undefined) {
@@ -118,7 +120,7 @@ async function searchWinesByName(householdId, name) {
 async function getWinesSummary(householdId) {
   return queryAll(
     `SELECT id, name, vintage, wine_type, quantity, drinking_recommendation, is_consumed,
-      region, grape_variety, storage_location, purchase_price, estimated_price
+      region, grape_variety, storage_location, purchase_price, estimated_price, price_source
      FROM wines WHERE household_id = $1
      ORDER BY is_consumed ASC, name ASC`,
     [householdId]
