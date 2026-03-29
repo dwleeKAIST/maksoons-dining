@@ -17,10 +17,23 @@ export default function Settings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteResult, setInviteResult] = useState('');
 
+  // Guest link
+  const [guestToken, setGuestToken] = useState(null);
+  const [guestExpiresAt, setGuestExpiresAt] = useState(null);
+  const [guestLinkLoading, setGuestLinkLoading] = useState(false);
+  const [guestCopied, setGuestCopied] = useState(false);
+
   useEffect(() => {
     if (household) {
       api.get('/api/auth/household/members').then(async res => {
         if (res.ok) setMembers(await res.json());
+      });
+      api.get('/api/auth/household/guest-link').then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          setGuestToken(data.token);
+          setGuestExpiresAt(data.expires_at);
+        }
       });
     }
   }, [household]);
@@ -52,6 +65,40 @@ export default function Settings() {
     setMessage(data.success ? '텔레그램 테스트 성공!' : '텔레그램 테스트 실패');
     setTimeout(() => setMessage(''), 3000);
   };
+
+  const handleGenerateGuestLink = async () => {
+    setGuestLinkLoading(true);
+    const res = await api.post('/api/auth/household/guest-link');
+    if (res.ok) {
+      const data = await res.json();
+      setGuestToken(data.token);
+      setGuestExpiresAt(data.expires_at);
+    }
+    setGuestLinkLoading(false);
+  };
+
+  const handleRevokeGuestLink = async () => {
+    setGuestLinkLoading(true);
+    const res = await api.delete('/api/auth/household/guest-link');
+    if (res.ok) {
+      setGuestToken(null);
+      setGuestExpiresAt(null);
+    }
+    setGuestLinkLoading(false);
+  };
+
+  const handleCopyGuestLink = () => {
+    const url = `${window.location.origin}/guest/${guestToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setGuestCopied(true);
+      setTimeout(() => setGuestCopied(false), 2000);
+    });
+  };
+
+  const guestLinkExpired = guestExpiresAt && new Date(guestExpiresAt) < new Date();
+  const guestDaysLeft = guestExpiresAt
+    ? Math.max(0, Math.ceil((new Date(guestExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
@@ -129,6 +176,62 @@ export default function Settings() {
               </button>
             </div>
             {inviteResult && <p className="text-xs text-gray-500 mt-2 break-all">{inviteResult}</p>}
+          </div>
+
+          {/* 게스트 와인 리스트 공유 */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <p className="text-xs text-gray-500 mb-2">🍷 게스트 와인 리스트 공유</p>
+            {guestToken && !guestLinkExpired ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/guest/${guestToken}`}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs bg-gray-50 text-gray-600 outline-none"
+                  />
+                  <button
+                    onClick={handleCopyGuestLink}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs hover:bg-purple-700 shrink-0"
+                  >
+                    {guestCopied ? '복사됨!' : '복사'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">
+                  만료까지 {guestDaysLeft}일 남음 ({new Date(guestExpiresAt).toLocaleDateString('ko-KR')})
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleGenerateGuestLink}
+                    disabled={guestLinkLoading}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    링크 재생성
+                  </button>
+                  <button
+                    onClick={handleRevokeGuestLink}
+                    disabled={guestLinkLoading}
+                    className="px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    비활성화
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {guestLinkExpired && (
+                  <p className="text-xs text-red-500">이전 링크가 만료되었습니다.</p>
+                )}
+                <p className="text-xs text-gray-400">게스트가 로그인 없이 와인 리스트를 볼 수 있는 링크를 생성합니다. (7일 유효)</p>
+                <button
+                  onClick={handleGenerateGuestLink}
+                  disabled={guestLinkLoading}
+                  className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {guestLinkLoading ? '생성 중...' : '게스트 링크 생성'}
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}

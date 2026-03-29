@@ -6,6 +6,7 @@ const { getUserSettings } = require('../db/queries/users');
 const botQueries = require('../db/queries/bot');
 const wineQueries = require('../db/queries/wines');
 const diaryQueries = require('../db/queries/diary');
+const householdQueries = require('../db/queries/household');
 
 let _client;
 function getClient() {
@@ -218,6 +219,15 @@ const TOOLS = [
       required: ['title', 'content'],
     },
   },
+  {
+    name: 'generate_guest_link',
+    description: '게스트용 와인 리스트 공유 링크를 생성합니다. 7일간 유효합니다.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 // ── Tool 실행 ──
@@ -333,6 +343,11 @@ async function executeTool(toolName, toolInput, householdId, userId) {
     case 'save_to_wiki': {
       const entry = await botQueries.saveWiki(householdId, toolInput.title, toolInput.content, toolInput.category);
       return `위키 저장 완료: "${entry.title}"`;
+    }
+
+    case 'generate_guest_link': {
+      const result = await householdQueries.generateGuestShareToken(householdId);
+      return `게스트 링크가 생성되었습니다 (7일간 유효).\n링크 경로: /guest/${result.guest_share_token}`;
     }
 
     default:
@@ -523,5 +538,17 @@ router.post('/structured', async (req, res) => {
     res.status(500).json({ error: '서버 오류' });
   }
 });
+
+// 게스트 라우트에서 재사용하기 위한 export
+router.getClient = getClient;
+router.gatherContext = gatherContext;
+router.executeTool = executeTool;
+router.TOOLS = TOOLS;
+router.MODEL = MODEL;
+router.INPUT_COST = INPUT_COST;
+router.OUTPUT_COST = OUTPUT_COST;
+router.MAX_TOOL_ROUNDS = MAX_TOOL_ROUNDS;
+router.MAX_INPUT_LENGTH = MAX_INPUT_LENGTH;
+router.getCurrentMonth = getCurrentMonth;
 
 module.exports = router;

@@ -127,6 +127,59 @@ async function getWinesSummary(householdId) {
   );
 }
 
+async function getGuestWines(householdId, filters = {}) {
+  let sql = `
+    SELECT id, name, vintage, region, country, grape_variety, wine_type,
+      quantity, drinking_window_start, drinking_window_end,
+      drinking_recommendation, recommendation_reason,
+      label_image_url, estimated_price, price_source
+    FROM wines
+    WHERE household_id = $1 AND is_consumed = false
+  `;
+  const params = [householdId];
+  let i = 2;
+
+  if (filters.wine_type) {
+    sql += ` AND wine_type = $${i++}`;
+    params.push(filters.wine_type);
+  }
+  if (filters.country) {
+    sql += ` AND country = $${i++}`;
+    params.push(filters.country);
+  }
+  if (filters.grape_variety) {
+    sql += ` AND grape_variety = $${i++}`;
+    params.push(filters.grape_variety);
+  }
+  if (filters.drinking_recommendation) {
+    sql += ` AND drinking_recommendation = $${i++}`;
+    params.push(filters.drinking_recommendation);
+  }
+  if (filters.search) {
+    sql += ` AND (name ILIKE $${i} OR region ILIKE $${i} OR country ILIKE $${i} OR grape_variety ILIKE $${i} OR memo ILIKE $${i})`;
+    params.push(`%${filters.search}%`);
+    i++;
+  }
+
+  sql += ' ORDER BY drinking_window_start ASC NULLS LAST, name ASC';
+  return queryAll(sql, params);
+}
+
+async function getGuestWineFilterOptions(householdId) {
+  const countries = await queryAll(
+    `SELECT DISTINCT country FROM wines WHERE household_id = $1 AND is_consumed = false AND country IS NOT NULL ORDER BY country`,
+    [householdId]
+  );
+  const grapes = await queryAll(
+    `SELECT DISTINCT grape_variety FROM wines WHERE household_id = $1 AND is_consumed = false AND grape_variety IS NOT NULL ORDER BY grape_variety`,
+    [householdId]
+  );
+  return {
+    countries: countries.map(r => r.country),
+    grape_varieties: grapes.map(r => r.grape_variety),
+  };
+}
+
 module.exports = {
   getAllWines,
   getWineById,
@@ -135,4 +188,6 @@ module.exports = {
   deleteWine,
   searchWinesByName,
   getWinesSummary,
+  getGuestWines,
+  getGuestWineFilterOptions,
 };

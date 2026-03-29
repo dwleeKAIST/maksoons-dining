@@ -61,6 +61,7 @@ async function start() {
 
   // Load routes AFTER listen — failures won't prevent port from opening
   try {
+    app.use('/api/guest', require('./server/routes/guest'));
     app.use('/api/auth', require('./server/routes/auth'));
     app.use('/api/wines', require('./server/routes/wines'));
     app.use('/api/diary', require('./server/routes/diary'));

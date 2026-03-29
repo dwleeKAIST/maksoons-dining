@@ -88,6 +88,30 @@ async function getPendingInvitations(householdId) {
   );
 }
 
+async function getHouseholdByGuestToken(token) {
+  return queryOne(
+    `SELECT * FROM households
+     WHERE guest_share_token = $1 AND guest_share_token_expires_at > NOW()`,
+    [token]
+  );
+}
+
+async function generateGuestShareToken(householdId) {
+  return queryOne(
+    `UPDATE households
+     SET guest_share_token = $1, guest_share_token_expires_at = NOW() + INTERVAL '7 days'
+     WHERE id = $2 RETURNING guest_share_token, guest_share_token_expires_at`,
+    [crypto.randomUUID(), householdId]
+  );
+}
+
+async function revokeGuestShareToken(householdId) {
+  return query(
+    `UPDATE households SET guest_share_token = NULL, guest_share_token_expires_at = NULL WHERE id = $1`,
+    [householdId]
+  );
+}
+
 module.exports = {
   createHousehold,
   getHousehold,
@@ -96,4 +120,7 @@ module.exports = {
   getInvitationByToken,
   acceptInvitation,
   getPendingInvitations,
+  getHouseholdByGuestToken,
+  generateGuestShareToken,
+  revokeGuestShareToken,
 };
