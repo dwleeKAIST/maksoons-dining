@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import HouseholdSetup from './pages/HouseholdSetup';
 import InviteAccept from './pages/InviteAccept';
+import GuestWineList from './pages/GuestWineList';
 import Wine from './tabs/Wine';
 import Grocery from './tabs/Grocery';
 import Settings from './tabs/Settings';
@@ -70,6 +71,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/guest/:token" element={<GuestWineList />} />
       {user ? (
         <>
           <Route path="/invite/:token" element={<InviteAccept />} />

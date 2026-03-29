@@ -161,6 +161,44 @@ router.post('/invite/accept', authenticate, async (req, res) => {
   }
 });
 
+// ── 게스트 링크 관리 ──
+
+// GET /api/auth/household/guest-link — 현재 토큰 조회
+router.get('/household/guest-link', authenticate, requireHousehold, async (req, res) => {
+  try {
+    const household = await householdQueries.getHousehold(req.user.householdId);
+    res.json({
+      token: household.guest_share_token || null,
+      expires_at: household.guest_share_token_expires_at || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
+// POST /api/auth/household/guest-link — 토큰 생성/재생성
+router.post('/household/guest-link', authenticate, requireHouseholdOwner, async (req, res) => {
+  try {
+    const result = await householdQueries.generateGuestShareToken(req.user.householdId);
+    res.json({
+      token: result.guest_share_token,
+      expires_at: result.guest_share_token_expires_at,
+    });
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
+// DELETE /api/auth/household/guest-link — 토큰 삭제
+router.delete('/household/guest-link', authenticate, requireHouseholdOwner, async (req, res) => {
+  try {
+    await householdQueries.revokeGuestShareToken(req.user.householdId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
 // GET /api/auth/invite/:token — 초대 정보 조회
 router.get('/invite/:token', async (req, res) => {
   try {
