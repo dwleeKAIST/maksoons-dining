@@ -56,7 +56,7 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
   const [occasion, setOccasion] = useState('');
   const [foodPairing, setFoodPairing] = useState('');
   const [search, setSearch] = useState('');
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -153,6 +153,7 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
                   src={wine.label_image_url}
                   alt={`${wine.name} 라벨`}
                   className="w-full h-40 object-contain rounded-lg bg-gray-50 mb-2"
+                  onError={(e) => { e.target.style.display = 'none'; }}
                 />
               )}
               <div className="flex items-start justify-between gap-2 mb-2">
