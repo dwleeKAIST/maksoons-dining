@@ -482,4 +482,46 @@ router.delete('/wiki/:id', async (req, res) => {
   }
 });
 
+// ── 구조화된 JSON 응답 전용 ──
+router.post('/structured', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt?.trim()) return res.status(400).json({ error: '프롬프트를 입력해주세요.' });
+    if (prompt.length > MAX_INPUT_LENGTH) {
+      return res.status(400).json({ error: `프롬프트는 ${MAX_INPUT_LENGTH}자 이하로 입력해주세요.` });
+    }
+
+    const settings = await getUserSettings(req.user.id);
+    const month = getCurrentMonth();
+
+    const usage = await botQueries.getMonthlyUsage(req.user.householdId, month);
+    const usdToKrw = settings?.usd_to_krw || 1350;
+    const maxCostKrw = settings?.bot_max_cost_krw || 10000;
+    const currentCostKrw = (usage?.total_cost_usd || 0) * usdToKrw;
+    if (currentCostKrw >= maxCostKrw) {
+      return res.status(429).json({ error: '이번 달 AI 사용 한도에 도달했습니다.' });
+    }
+
+    const response = await getClient().messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      system: '당신은 와인 전문가입니다. 반드시 유효한 JSON으로만 응답하세요. JSON 외의 텍스트, 설명, 마크다운 코드블록을 절대 포함하지 마세요.',
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    const costUsd = (response.usage?.input_tokens || 0) * INPUT_COST + (response.usage?.output_tokens || 0) * OUTPUT_COST;
+    await botQueries.trackUsage(req.user.householdId, req.user.id, month, response.usage?.input_tokens || 0, response.usage?.output_tokens || 0, costUsd);
+
+    res.json({ reply: text });
+  } catch (err) {
+    console.error('[bot] structured error:', err.message);
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
 module.exports = router;
