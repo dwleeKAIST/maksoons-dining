@@ -139,6 +139,7 @@ export default function WineForm({ wine, onSave, onClose }) {
               src={form.label_image_url}
               alt="와인 라벨"
               className="w-full h-40 object-contain rounded-lg bg-gray-50 border"
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           </div>
         )}

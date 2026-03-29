@@ -80,7 +80,11 @@ export default function WineScanner({ onResult, onClose }) {
         const data = await res.json();
         if (data.parsed_wines?.length > 0) {
           setResults(data.parsed_wines);
-          if (data.image_url) setImageUrl(data.image_url);
+          if (data.image_url) {
+            setImageUrl(data.image_url);
+          } else if (data.image_upload_failed) {
+            setError('와인 정보는 인식되었지만 라벨 이미지 저장에 실패했습니다.');
+          }
         } else {
           setError('와인 정보를 인식하지 못했습니다. 다른 사진을 시도해보세요.');
         }
@@ -95,7 +99,7 @@ export default function WineScanner({ onResult, onClose }) {
   };
 
   const handleUseResult = (wine) => {
-    onResult([{ ...wine, label_image_url: imageUrl || image }]);
+    onResult([{ ...wine, label_image_url: imageUrl || null }]);
   };
 
   return (
