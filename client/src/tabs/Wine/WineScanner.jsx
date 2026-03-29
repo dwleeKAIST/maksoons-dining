@@ -95,7 +95,7 @@ export default function WineScanner({ onResult, onClose }) {
   };
 
   const handleUseResult = (wine) => {
-    onResult([{ ...wine, label_image_url: imageUrl }]);
+    onResult([{ ...wine, label_image_url: imageUrl || image }]);
   };
 
   return (
