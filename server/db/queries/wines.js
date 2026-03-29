@@ -132,7 +132,7 @@ async function getGuestWines(householdId, filters = {}) {
     SELECT id, name, vintage, region, country, grape_variety, wine_type,
       quantity, drinking_window_start, drinking_window_end,
       drinking_recommendation, recommendation_reason,
-      label_image_url, estimated_price, price_source
+      label_image_url
     FROM wines
     WHERE household_id = $1 AND is_consumed = false
   `;
