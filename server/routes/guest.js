@@ -146,7 +146,23 @@ ${contextText ? `\n--- 참고 데이터 ---\n${contextText}` : ''}`;
       const toolResults = [];
       for (const tu of toolUses) {
         try {
-          const result = await executeTool(tu.name, tu.input, householdId, ownerId);
+          if (!GUEST_TOOL_NAMES.includes(tu.name)) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: '게스트 모드에서는 사용할 수 없는 도구입니다.', is_error: true });
+            continue;
+          }
+          let result;
+          // search_wines는 게스트용 쿼리 사용 (소비 와인 제외)
+          if (tu.name === 'search_wines') {
+            const filters = {};
+            if (tu.input.wine_type) filters.wine_type = tu.input.wine_type;
+            if (tu.input.query) filters.search = tu.input.query;
+            const wines = await wineQueries.getGuestWines(householdId, filters);
+            result = wines.length
+              ? wines.map(w => `[ID:${w.id}] ${w.name} ${w.vintage || ''} (${w.wine_type}) 수량:${w.quantity} 추천:${w.drinking_recommendation}`).join('\n')
+              : '검색 결과가 없습니다.';
+          } else {
+            result = await executeTool(tu.name, tu.input, householdId, ownerId);
+          }
           toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: result });
         } catch (err) {
           console.error(`[guest-bot] Tool ${tu.name} error:`, err.message);

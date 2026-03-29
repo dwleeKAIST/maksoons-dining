@@ -156,7 +156,7 @@ async function getGuestWines(householdId, filters = {}) {
     params.push(filters.drinking_recommendation);
   }
   if (filters.search) {
-    sql += ` AND (name ILIKE $${i} OR region ILIKE $${i} OR country ILIKE $${i} OR grape_variety ILIKE $${i} OR memo ILIKE $${i})`;
+    sql += ` AND (name ILIKE $${i} OR region ILIKE $${i} OR country ILIKE $${i} OR grape_variety ILIKE $${i})`;
     params.push(`%${filters.search}%`);
     i++;
   }

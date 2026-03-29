@@ -346,6 +346,10 @@ async function executeTool(toolName, toolInput, householdId, userId) {
     }
 
     case 'generate_guest_link': {
+      const household = await householdQueries.getHousehold(householdId);
+      if (!household || household.owner_id !== userId) {
+        return '게스트 링크는 가정의 주인만 생성할 수 있습니다.';
+      }
       const result = await householdQueries.generateGuestShareToken(householdId);
       return `게스트 링크가 생성되었습니다 (7일간 유효).\n링크 경로: /guest/${result.guest_share_token}`;
     }

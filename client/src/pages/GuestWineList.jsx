@@ -282,7 +282,7 @@ export default function GuestWineList() {
                 <p>등록된 와인이 없습니다.</p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={`grid gap-3 sm:grid-cols-2 ${showChat ? '' : 'lg:grid-cols-3'}`}>
                 {wines.map(wine => (
                   <div key={wine.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
                     {showLabels && wine.label_image_url && (
