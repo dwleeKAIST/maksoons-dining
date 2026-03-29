@@ -56,6 +56,7 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
   const [occasion, setOccasion] = useState('');
   const [foodPairing, setFoodPairing] = useState('');
   const [search, setSearch] = useState('');
+  const [showLabels, setShowLabels] = useState(false);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -82,6 +83,19 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
 
   return (
     <div>
+      {/* 라벨 사진 토글 */}
+      <div className="flex items-center gap-2 mb-2">
+        <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showLabels}
+            onChange={e => setShowLabels(e.target.checked)}
+            className="accent-purple-600"
+          />
+          라벨 사진 보기
+        </label>
+      </div>
+
       {/* 필터 바 */}
       <div className="flex flex-wrap gap-2 mb-4">
         <form onSubmit={handleSearch} className="flex gap-1">
@@ -134,6 +148,13 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
                 wine.is_consumed ? 'opacity-60 border-gray-200' : 'border-gray-200'
               }`}
             >
+              {showLabels && wine.label_image_url && (
+                <img
+                  src={wine.label_image_url}
+                  alt={`${wine.name} 라벨`}
+                  className="w-full h-40 object-contain rounded-lg bg-gray-50 mb-2"
+                />
+              )}
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
                   <h3 className="font-medium text-gray-900 truncate">{wine.name}</h3>

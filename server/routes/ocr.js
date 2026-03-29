@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Anthropic = require('@anthropic-ai/sdk');
 const vision = require('@google-cloud/vision');
+const admin = require('firebase-admin');
 const { authenticate, requireHousehold } = require('../middleware/auth');
 const { getUserSettings } = require('../db/queries/users');
 const botQueries = require('../db/queries/bot');
@@ -24,6 +25,24 @@ const OUTPUT_COST = 4.00 / 1_000_000;
 function getCurrentMonth() {
   const now = new Date();
   return `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Firebase Storage에 이미지 업로드
+async function uploadLabelImage(householdId, base64Data) {
+  try {
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
+    if (!bucketName) return null;
+    const bucket = admin.storage().bucket(bucketName);
+    const fileName = `wine-labels/${householdId}/${Date.now()}.jpg`;
+    const file = bucket.file(fileName);
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    await file.save(imageBuffer, { contentType: 'image/jpeg', metadata: { cacheControl: 'public, max-age=31536000' } });
+    await file.makePublic();
+    return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+  } catch (err) {
+    console.error('[ocr] Image upload failed:', err.message);
+    return null;
+  }
 }
 
 router.use(authenticate);
@@ -103,9 +122,13 @@ JSON만 응답하세요.`,
       return res.status(400).json({ error: 'AI가 와인 정보를 파싱하지 못했습니다.', raw_text: ocrText });
     }
 
+    // Firebase Storage에 라벨 이미지 업로드 (비동기, 실패해도 진행)
+    const imageUrl = await uploadLabelImage(req.user.householdId, base64Data);
+
     res.json({
       ocr_text: ocrText,
       parsed_wines: parsed.wines || [],
+      image_url: imageUrl,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd },
     });
   } catch (err) {

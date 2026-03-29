@@ -11,6 +11,7 @@ export default function WineScanner({ onResult, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState(null);
+  const [imageUrl, setImageUrl] = useState(null);
   const [isCropping, setIsCropping] = useState(false);
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState();
@@ -79,6 +80,7 @@ export default function WineScanner({ onResult, onClose }) {
         const data = await res.json();
         if (data.parsed_wines?.length > 0) {
           setResults(data.parsed_wines);
+          if (data.image_url) setImageUrl(data.image_url);
         } else {
           setError('와인 정보를 인식하지 못했습니다. 다른 사진을 시도해보세요.');
         }
@@ -93,7 +95,7 @@ export default function WineScanner({ onResult, onClose }) {
   };
 
   const handleUseResult = (wine) => {
-    onResult([wine]);
+    onResult([{ ...wine, label_image_url: imageUrl }]);
   };
 
   return (
