@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { WINE_TYPES, RECOMMENDATIONS, TYPE_COLORS, REC_BADGES } from '../constants/wine';
 
@@ -143,6 +143,8 @@ export default function GuestWineList() {
   const [showLabels, setShowLabels] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [requestState, setRequestState] = useState({}); // { [wineId]: 'loading' | 'done' | 'error' }
+  const [expandedWineId, setExpandedWineId] = useState(null);
+  const [showStats, setShowStats] = useState(false);
 
   const handleRequest = async (wineId) => {
     setRequestState(prev => ({ ...prev, [wineId]: 'loading' }));
@@ -199,6 +201,23 @@ export default function GuestWineList() {
       .catch(() => setError('와인 목록을 불러올 수 없습니다.'))
       .finally(() => setLoading(false));
   }, [token, filters, error]);
+
+  const stats = useMemo(() => {
+    const byType = {}, byCountry = {}, byGrape = {}, byRec = {};
+    wines.forEach(w => {
+      if (w.wine_type) byType[w.wine_type] = (byType[w.wine_type] || 0) + 1;
+      if (w.country) byCountry[w.country] = (byCountry[w.country] || 0) + 1;
+      if (w.grape_variety) byGrape[w.grape_variety] = (byGrape[w.grape_variety] || 0) + 1;
+      if (w.drinking_recommendation) byRec[w.drinking_recommendation] = (byRec[w.drinking_recommendation] || 0) + 1;
+    });
+    return { byType, byCountry, byGrape, byRec };
+  }, [wines]);
+
+  const typeLabelMap = Object.fromEntries(WINE_TYPES.filter(t => t.value).map(t => [t.value, t.label]));
+
+  const toggleFilter = (key, value) => {
+    setFilters(f => ({ ...f, [key]: f[key] === value ? undefined : value }));
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -301,7 +320,108 @@ export default function GuestWineList() {
               >
                 {RECOMMENDATIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
+              <button
+                onClick={() => setShowStats(s => !s)}
+                className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${showStats ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}`}
+              >
+                📊 {showStats ? '닫기' : '통계'}
+              </button>
             </div>
+
+            {/* 통계 패널 */}
+            {showStats && wines.length > 0 && (
+              <div className="bg-white rounded-xl border border-purple-200 p-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* 종류별 */}
+                  {Object.keys(stats.byType).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1.5">종류별</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(stats.byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                          <button
+                            key={type}
+                            onClick={() => toggleFilter('wine_type', type)}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              filters.wine_type === type
+                                ? 'ring-2 ring-purple-400 ' + (TYPE_COLORS[type] || 'bg-gray-100 text-gray-600')
+                                : TYPE_COLORS[type] || 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {typeLabelMap[type] || type} ({count})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 국가별 */}
+                  {Object.keys(stats.byCountry).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1.5">국가별</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(stats.byCountry).sort((a, b) => b[1] - a[1]).map(([country, count]) => (
+                          <button
+                            key={country}
+                            onClick={() => toggleFilter('country', country)}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              filters.country === country
+                                ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-400'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {country} ({count})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 품종별 */}
+                  {Object.keys(stats.byGrape).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1.5">품종별</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(stats.byGrape).sort((a, b) => b[1] - a[1]).map(([grape, count]) => (
+                          <button
+                            key={grape}
+                            onClick={() => toggleFilter('grape_variety', grape)}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              filters.grape_variety === grape
+                                ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-400'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {grape} ({count})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 음용 추천별 */}
+                  {Object.keys(stats.byRec).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1.5">음용 추천별</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(stats.byRec).sort((a, b) => b[1] - a[1]).map(([rec, count]) => (
+                          <button
+                            key={rec}
+                            onClick={() => toggleFilter('drinking_recommendation', rec)}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              filters.drinking_recommendation === rec
+                                ? 'ring-2 ring-purple-400 ' + (REC_BADGES[rec]?.cls || 'bg-gray-100 text-gray-500')
+                                : REC_BADGES[rec]?.cls || 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {REC_BADGES[rec]?.label || rec} ({count})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 와인 카드 그리드 */}
             {loading ? (
@@ -314,7 +434,7 @@ export default function GuestWineList() {
             ) : (
               <div className={`grid gap-3 ${showChat ? '' : 'sm:grid-cols-2'}`}>
                 {wines.map(wine => (
-                  <div key={wine.id} className="bg-white rounded-xl border border-gray-200 p-3 hover:shadow-md transition-shadow">
+                  <div key={wine.id} className={`bg-white rounded-xl border p-3 hover:shadow-md transition-shadow cursor-pointer ${expandedWineId === wine.id ? 'border-purple-300 ring-2 ring-purple-100' : 'border-gray-200'}`} onClick={() => setExpandedWineId(prev => prev === wine.id ? null : wine.id)}>
                     <div className="flex gap-3">
                       {showLabels && wine.label_image_url && (
                         <img
@@ -351,14 +471,14 @@ export default function GuestWineList() {
                           <span className="text-[10px] text-gray-400">수량: {wine.quantity}</span>
                         </div>
                         {wine.recommendation_reason && (
-                          <p className="text-[10px] text-gray-400 line-clamp-2">💡 {wine.recommendation_reason}</p>
+                          <p className={`text-[10px] text-gray-400 ${expandedWineId === wine.id ? '' : 'line-clamp-2'}`}>💡 {wine.recommendation_reason}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <button
-                        onClick={() => handleRequest(wine.id)}
+                        onClick={(e) => { e.stopPropagation(); handleRequest(wine.id); }}
                         disabled={requestState[wine.id] === 'loading' || requestState[wine.id] === 'done'}
                         className={`w-full py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           requestState[wine.id] === 'done'
