@@ -1,0 +1,1 @@
+ALTER TABLE wines ADD COLUMN IF NOT EXISTS wine_description TEXT;
