@@ -103,52 +103,51 @@ export default function WineList({ wines, loading, filters, onFilterChange, onEd
           <p className="text-sm mt-1">와인을 추가하거나 라벨을 스캔해보세요!</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {wines.map(wine => (
             <div
               key={wine.id}
-              className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${
+              className={`bg-white rounded-xl border p-3 hover:shadow-md transition-shadow ${
                 wine.is_consumed ? 'opacity-60 border-gray-200' : 'border-gray-200'
               }`}
             >
-              {showLabels && wine.label_image_url && (
-                <img
-                  src={wine.label_image_url}
-                  alt={`${wine.name} 라벨`}
-                  className="w-full h-40 object-contain rounded-lg bg-gray-50 mb-2"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              )}
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">{wine.name}</h3>
-                  <p className="text-sm text-gray-500">
+              <div className="flex gap-3">
+                {showLabels && wine.label_image_url && (
+                  <img
+                    src={wine.label_image_url}
+                    alt={`${wine.name} 라벨`}
+                    className="w-24 h-32 shrink-0 object-cover rounded-lg bg-gray-50"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1.5 mb-1">
+                    <h3 className="font-medium text-gray-900 text-sm leading-tight">{wine.name}</h3>
+                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
+                      {wine.wine_type}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1.5">
                     {wine.vintage && <span>{wine.vintage} · </span>}
                     {wine.region && <span>{wine.region}</span>}
                     {wine.grape_variety && <span> · {wine.grape_variety}</span>}
                   </p>
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {wine.drinking_recommendation && REC_BADGES[wine.drinking_recommendation] && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${REC_BADGES[wine.drinking_recommendation].cls}`}>
+                        {REC_BADGES[wine.drinking_recommendation].label}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-gray-400">수량: {wine.quantity}</span>
+                    {wine.purchase_price && <span className="text-[10px] text-gray-400">구입가: {Number(wine.purchase_price).toLocaleString()}원</span>}
+                    {wine.estimated_price && <span className="text-[10px] text-blue-400">시세: ~{Number(wine.estimated_price).toLocaleString()}원{wine.price_source && <span className="text-gray-400"> ({wine.price_source})</span>}</span>}
+                  </div>
+                  {wine.memo && <p className="text-[10px] text-gray-400 truncate">📝 {wine.memo}</p>}
+                  <DiaryBadge entries={wine.diary_entries} />
                 </div>
-                <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
-                  {wine.wine_type}
-                </span>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {wine.drinking_recommendation && REC_BADGES[wine.drinking_recommendation] && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${REC_BADGES[wine.drinking_recommendation].cls}`}>
-                    {REC_BADGES[wine.drinking_recommendation].label}
-                  </span>
-                )}
-                <span className="text-xs text-gray-400">수량: {wine.quantity}</span>
-                {wine.purchase_price && <span className="text-xs text-gray-400">구입가: {Number(wine.purchase_price).toLocaleString()}원</span>}
-                {wine.estimated_price && <span className="text-xs text-blue-400">시세: ~{Number(wine.estimated_price).toLocaleString()}원{wine.price_source && <span className="text-gray-400"> ({wine.price_source})</span>}</span>}
-              </div>
-
-              {wine.memo && <p className="text-xs text-gray-400 mb-2 truncate">📝 {wine.memo}</p>}
-
-              <DiaryBadge entries={wine.diary_entries} />
-
-              <div className="flex gap-1.5 mt-3 pt-2 border-t border-gray-100">
+              <div className="flex gap-1.5 mt-2 pt-2 border-t border-gray-100">
                 <button onClick={() => onEdit(wine)} className="text-xs text-gray-500 hover:text-purple-600">수정</button>
                 <button onClick={() => onDelete(wine.id)} className="text-xs text-gray-500 hover:text-red-600">삭제</button>
                 {!wine.is_consumed && (
