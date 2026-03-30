@@ -128,17 +128,6 @@ export default function WineForm({ wine, onSave, onClose }) {
     setAnalyzing(true);
     setError('');
     try {
-      // CT 데이터가 없으면 가져오기 시도
-      if (!ctData) {
-        try {
-          const ctRes = await api.post('/api/bot/cellartracker-sync');
-          if (ctRes.ok) {
-            const ctBody = await ctRes.json();
-            ctData = ctBody.wines || [];
-          }
-        } catch {}
-      }
-
       const prompt = buildDrinkingWindowPrompt(form, ctData);
       const res = await api.post('/api/bot/structured', { prompt });
       if (res.ok) {
