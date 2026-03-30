@@ -74,7 +74,7 @@ router.patch('/me', authenticate, async (req, res) => {
 // PATCH /api/auth/settings — 설정 변경
 router.patch('/settings', authenticate, async (req, res) => {
   try {
-    const allowed = ['bot_max_cost_krw', 'usd_to_krw', 'telegram_bot_token', 'telegram_chat_id', 'telegram_enabled'];
+    const allowed = ['bot_max_cost_krw', 'usd_to_krw', 'telegram_bot_token', 'telegram_chat_id', 'telegram_enabled', 'cellartracker_user', 'cellartracker_password'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];

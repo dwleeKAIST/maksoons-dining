@@ -419,6 +419,7 @@ ${contextText ? `\n--- 참고 데이터 ---\n${contextText}` : ''}`;
       const response = await getClient().messages.create({
         model: MODEL,
         max_tokens: 2048,
+        temperature: 0,
         system: systemPrompt,
         messages,
         tools: TOOLS,
@@ -524,6 +525,7 @@ router.post('/structured', async (req, res) => {
     const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 1024,
+      temperature: 0,
       system: '당신은 와인 전문가입니다. 반드시 유효한 JSON으로만 응답하세요. JSON 외의 텍스트, 설명, 마크다운 코드블록을 절대 포함하지 마세요.',
       messages: [{ role: 'user', content: prompt }],
     });
@@ -540,6 +542,60 @@ router.post('/structured', async (req, res) => {
   } catch (err) {
     console.error('[bot] structured error:', err.message);
     res.status(500).json({ error: '서버 오류' });
+  }
+});
+
+// ── CellarTracker 동기화 ──
+
+router.post('/cellartracker-sync', async (req, res) => {
+  try {
+    const settings = await getUserSettings(req.user.id);
+    const ctUser = settings?.cellartracker_user;
+    const ctPassword = settings?.cellartracker_password;
+    if (!ctUser || !ctPassword) {
+      return res.status(400).json({ error: 'CellarTracker 자격증명이 설정되지 않았습니다.' });
+    }
+
+    const url = `https://www.cellartracker.com/xlquery.asp?User=${encodeURIComponent(ctUser)}&Password=${encodeURIComponent(ctPassword)}&Format=tab&Table=List`;
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    const text = new TextDecoder('windows-1252').decode(buffer);
+
+    if (text.includes('not logged into CellarTracker')) {
+      return res.status(401).json({ error: 'CellarTracker 로그인 실패. 사용자명과 비밀번호를 확인해주세요.' });
+    }
+
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) {
+      return res.json({ wines: [], count: 0 });
+    }
+
+    const headers = lines[0].split('\t');
+    const idx = (name) => headers.indexOf(name);
+
+    const wines = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split('\t');
+      const beginConsume = parseInt(cols[idx('BeginConsume')]);
+      const endConsume = parseInt(cols[idx('EndConsume')]);
+      if (!beginConsume && !endConsume) continue;
+
+      wines.push({
+        wine: cols[idx('Wine')] || '',
+        vintage: parseInt(cols[idx('Vintage')]) || null,
+        producer: cols[idx('Producer')] || '',
+        varietal: cols[idx('Varietal')] || '',
+        region: cols[idx('Region')] || '',
+        country: cols[idx('Country')] || '',
+        beginConsume: beginConsume || null,
+        endConsume: endConsume || null,
+      });
+    }
+
+    res.json({ wines, count: wines.length });
+  } catch (err) {
+    console.error('[bot] cellartracker-sync error:', err.message);
+    res.status(500).json({ error: 'CellarTracker 동기화 중 오류가 발생했습니다.' });
   }
 });
 
