@@ -9,7 +9,7 @@ const GUEST_EXAMPLE_CHIPS = [
   '와인 리스트 보여줘',
 ];
 
-function GuestSommelierChat({ token }) {
+function GuestSommelierChat({ token, initialMessage, onInitialMessageConsumed }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,6 +19,13 @@ function GuestSommelierChat({ token }) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (initialMessage) {
+      sendMessage(initialMessage);
+      onInitialMessageConsumed?.();
+    }
+  }, [initialMessage]);
 
   const sendMessage = async (text) => {
     const trimmed = text?.trim() || input.trim();
@@ -147,6 +154,14 @@ export default function GuestWineList() {
   const [expandedWineId, setExpandedWineId] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
+  const [sommelierQuery, setSommelierQuery] = useState('');
+
+  const askSommelier = (wine) => {
+    const name = wine.name;
+    const details = [wine.vintage, wine.region, wine.country, wine.grape_variety].filter(Boolean).join(', ');
+    setSommelierQuery(`${name}${details ? ` (${details})` : ''} 와인에 대해 알려줘`);
+    setShowChat(true);
+  };
 
   const handleRequest = async (wineId) => {
     setRequestState(prev => ({ ...prev, [wineId]: 'loading' }));
@@ -455,9 +470,18 @@ export default function GuestWineList() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-1.5 mb-1">
                           <h3 className="font-medium text-gray-900 text-sm leading-tight">{wine.name}</h3>
-                          <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
-                            {wine.wine_type}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); askSommelier(wine); }}
+                              title="소믈리에에게 물어보기"
+                              className="w-5 h-5 flex items-center justify-center rounded-full bg-purple-50 hover:bg-purple-100 transition-colors text-[10px] leading-none"
+                            >
+                              🤖
+                            </button>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${TYPE_COLORS[wine.wine_type] || 'bg-gray-100 text-gray-600'}`}>
+                              {wine.wine_type}
+                            </span>
+                          </div>
                         </div>
                         <p className="text-xs text-gray-500 mb-1.5">
                           {wine.vintage && <span>{wine.vintage} · </span>}
@@ -515,7 +539,7 @@ export default function GuestWineList() {
 
           {showChat && (
             <div className="lg:col-span-1">
-              <GuestSommelierChat token={token} />
+              <GuestSommelierChat token={token} initialMessage={sommelierQuery} onInitialMessageConsumed={() => setSommelierQuery('')} />
             </div>
           )}
         </div>
