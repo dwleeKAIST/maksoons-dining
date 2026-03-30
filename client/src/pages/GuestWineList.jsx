@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { WINE_TYPES, RECOMMENDATIONS, TYPE_COLORS, REC_BADGES } from '../constants/wine';
+import WineRecommendationWizard from '../components/WineRecommendationWizard';
 
 const GUEST_EXAMPLE_CHIPS = [
   '지금 마시기 좋은 와인 추천해줘',
@@ -145,6 +146,7 @@ export default function GuestWineList() {
   const [requestState, setRequestState] = useState({}); // { [wineId]: 'loading' | 'done' | 'error' }
   const [expandedWineId, setExpandedWineId] = useState(null);
   const [showStats, setShowStats] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const handleRequest = async (wineId) => {
     setRequestState(prev => ({ ...prev, [wineId]: 'loading' }));
@@ -256,6 +258,12 @@ export default function GuestWineList() {
             <br />저희 셀러에서 잠들어 있는 와인들이 좋은 자리에서 열리길 기다리고 있어요.
             <br />부어라 마셔라, 여기선 눌러라 마셔라! 마음에 드는 와인이 있다면 망설이지 마세요 🍷
           </p>
+          <button
+            onClick={() => setShowWizard(true)}
+            className="mt-3 w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl text-sm font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-md"
+          >
+            🍷 AI 소믈리에에게 나에게 맞는 와인 추천받기
+          </button>
         </div>
 
         <div className={showChat ? 'grid grid-cols-1 lg:grid-cols-3 gap-6' : ''}>
@@ -512,6 +520,14 @@ export default function GuestWineList() {
           )}
         </div>
       </main>
+
+      {showWizard && (
+        <WineRecommendationWizard
+          token={token}
+          onClose={() => setShowWizard(false)}
+          onRequestWine={handleRequest}
+        />
+      )}
     </div>
   );
 }
