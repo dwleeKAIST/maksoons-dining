@@ -141,6 +141,7 @@ export default function Settings() {
           drinking_window_end: parsed.drinking_window_end || null,
           drinking_recommendation: parsed.recommendation || null,
           recommendation_reason: reason || null,
+          wine_description: parsed.description || null,
         });
         success++;
         if (parsed.source && sourceCounts[parsed.source] !== undefined) {

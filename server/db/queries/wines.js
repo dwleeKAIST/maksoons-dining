@@ -64,8 +64,9 @@ async function addWine(householdId, userId, data) {
     `INSERT INTO wines (household_id, added_by, name, vintage, region, country, grape_variety,
       wine_type, purchase_price, estimated_price, quantity, storage_location, memo,
       purchase_date, drinking_window_start, drinking_window_end,
-      drinking_recommendation, recommendation_reason, label_image_url, price_source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      drinking_recommendation, recommendation_reason, label_image_url, price_source,
+      wine_description)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
      RETURNING *`,
     [
       householdId, userId, data.name, data.vintage || null,
@@ -75,7 +76,7 @@ async function addWine(householdId, userId, data) {
       data.purchase_date || null, data.drinking_window_start || null,
       data.drinking_window_end || null, data.drinking_recommendation || 'unknown',
       data.recommendation_reason || null, data.label_image_url || null,
-      data.price_source || null,
+      data.price_source || null, data.wine_description || null,
     ]
   );
 }
@@ -89,7 +90,7 @@ async function updateWine(id, householdId, data) {
     'purchase_price', 'estimated_price', 'quantity', 'storage_location', 'memo',
     'purchase_date', 'drinking_window_start', 'drinking_window_end',
     'drinking_recommendation', 'recommendation_reason', 'is_consumed', 'label_image_url',
-    'price_source',
+    'price_source', 'wine_description',
   ];
   for (const key of allowed) {
     if (data[key] !== undefined) {
@@ -132,7 +133,7 @@ async function getGuestWines(householdId, filters = {}) {
     SELECT id, name, vintage, region, country, grape_variety, wine_type,
       quantity, drinking_window_start, drinking_window_end,
       drinking_recommendation, recommendation_reason,
-      label_image_url
+      label_image_url, wine_description
     FROM wines
     WHERE household_id = $1 AND is_consumed = false
   `;

@@ -37,6 +37,7 @@ export default function WineForm({ wine, onSave, onClose }) {
     recommendation_reason: wine?.recommendation_reason || '',
     label_image_url: wine?.label_image_url || '',
     price_source: wine?.price_source || '',
+    wine_description: wine?.wine_description || '',
   });
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
@@ -66,6 +67,7 @@ export default function WineForm({ wine, onSave, onClose }) {
       recommendation_reason: form.recommendation_reason || null,
       label_image_url: form.label_image_url || null,
       price_source: form.price_source || null,
+      wine_description: form.wine_description || null,
     };
     const res = await onSave(data);
     setLoading(false);
@@ -148,6 +150,7 @@ export default function WineForm({ wine, onSave, onClose }) {
           if (parsed.recommendation) handleChange('drinking_recommendation', parsed.recommendation);
           const reason = formatRecommendationReason(parsed);
           if (reason) handleChange('recommendation_reason', reason);
+          if (parsed.description) handleChange('wine_description', parsed.description);
         } else {
           setError('AI 응답 형식이 올바르지 않습니다.');
         }
@@ -366,6 +369,9 @@ export default function WineForm({ wine, onSave, onClose }) {
               </div>
               {form.recommendation_reason && (
                 <p className="text-xs text-gray-600">{form.recommendation_reason}</p>
+              )}
+              {form.wine_description && (
+                <p className="text-xs text-gray-500 italic mt-1">{form.wine_description}</p>
               )}
             </div>
           )}

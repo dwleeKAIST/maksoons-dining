@@ -470,6 +470,9 @@ export default function GuestWineList() {
                           )}
                           <span className="text-[10px] text-gray-400">수량: {wine.quantity}</span>
                         </div>
+                        {wine.wine_description && (
+                          <p className={`text-[10px] text-gray-500 italic ${expandedWineId === wine.id ? '' : 'line-clamp-2'}`}>{wine.wine_description}</p>
+                        )}
                         {wine.recommendation_reason && (
                           <p className={`text-[10px] text-gray-400 ${expandedWineId === wine.id ? '' : 'line-clamp-2'}`}>💡 {wine.recommendation_reason}</p>
                         )}
