@@ -143,6 +143,7 @@ export default function GuestWineList() {
   const [showLabels, setShowLabels] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [requestState, setRequestState] = useState({}); // { [wineId]: 'loading' | 'done' | 'error' }
+  const [expandedWineId, setExpandedWineId] = useState(null);
 
   const handleRequest = async (wineId) => {
     setRequestState(prev => ({ ...prev, [wineId]: 'loading' }));
@@ -314,7 +315,7 @@ export default function GuestWineList() {
             ) : (
               <div className={`grid gap-3 ${showChat ? '' : 'sm:grid-cols-2'}`}>
                 {wines.map(wine => (
-                  <div key={wine.id} className="bg-white rounded-xl border border-gray-200 p-3 hover:shadow-md transition-shadow">
+                  <div key={wine.id} className={`bg-white rounded-xl border p-3 hover:shadow-md transition-shadow cursor-pointer ${expandedWineId === wine.id ? 'border-purple-300 ring-2 ring-purple-100' : 'border-gray-200'}`} onClick={() => setExpandedWineId(prev => prev === wine.id ? null : wine.id)}>
                     <div className="flex gap-3">
                       {showLabels && wine.label_image_url && (
                         <img
@@ -351,14 +352,14 @@ export default function GuestWineList() {
                           <span className="text-[10px] text-gray-400">수량: {wine.quantity}</span>
                         </div>
                         {wine.recommendation_reason && (
-                          <p className="text-[10px] text-gray-400 line-clamp-2">💡 {wine.recommendation_reason}</p>
+                          <p className={`text-[10px] text-gray-400 ${expandedWineId === wine.id ? '' : 'line-clamp-2'}`}>💡 {wine.recommendation_reason}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <button
-                        onClick={() => handleRequest(wine.id)}
+                        onClick={(e) => { e.stopPropagation(); handleRequest(wine.id); }}
                         disabled={requestState[wine.id] === 'loading' || requestState[wine.id] === 'done'}
                         className={`w-full py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           requestState[wine.id] === 'done'
