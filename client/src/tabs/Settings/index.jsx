@@ -118,7 +118,7 @@ export default function Settings() {
 
     setReanalyzeProgress({ current: 0, total: wines.length });
     let success = 0, failed = 0, costLimitHit = false;
-    const sourceCounts = { ct_exact: 0, ct_similar: 0, ai_estimate: 0 };
+    const sourceCounts = { ct_exact: 0, ct_similar: 0, ref_guided: 0, ai_estimate: 0 };
 
     for (let i = 0; i < wines.length; i++) {
       setReanalyzeProgress({ current: i + 1, total: wines.length });
@@ -385,7 +385,7 @@ export default function Settings() {
           <div className="border-t border-gray-100 pt-3">
             <p className="text-xs text-gray-500 mb-1">전체 음용 적기 재분석</p>
             <p className="text-xs text-gray-400 mb-2">
-              모든 미소비 와인의 음용 적기를 다시 분석합니다. CellarTracker 데이터가 연동되어 있으면 우선 참고합니다.
+              모든 미소비 와인의 음용 적기를 다시 분석합니다. 와인 가이드라인 데이터를 참고하며, CellarTracker 연동 시 추가 참고합니다.
             </p>
             <button
               type="button"
@@ -407,6 +407,7 @@ export default function Settings() {
                   <p className="mt-1 text-gray-500">
                     CT 매칭: {reanalyzeResult.sourceCounts.ct_exact},
                     유사 참고: {reanalyzeResult.sourceCounts.ct_similar},
+                    가이드라인 분석: {reanalyzeResult.sourceCounts.ref_guided},
                     AI 추정: {reanalyzeResult.sourceCounts.ai_estimate}
                   </p>
                 )}

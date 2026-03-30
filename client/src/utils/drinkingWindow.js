@@ -1,6 +1,7 @@
 /**
- * CellarTracker 매칭 + 3단계 폴백 프롬프트 구성 유틸리티
+ * 와인 레퍼런스 가이드라인 + CellarTracker 매칭 + 3단계 폴백 프롬프트 구성 유틸리티
  */
+import { findReferenceData } from './wineReferenceData';
 
 const STOP_WORDS = new Set([
   'the', 'de', 'du', 'di', 'le', 'la', 'les', 'des', 'del', 'el',
@@ -72,6 +73,7 @@ function findCtMatches(wine, ctData) {
 export function buildDrinkingWindowPrompt(wine, ctData) {
   const { exact, similar } = findCtMatches(wine, ctData);
 
+  // CellarTracker 참고 데이터 섹션
   let ctSection = '';
   if (exact.length || similar.length) {
     ctSection = '\n--- CellarTracker 참고 데이터 ---\n';
@@ -83,14 +85,35 @@ export function buildDrinkingWindowPrompt(wine, ctData) {
     }
   }
 
-  return `와인: "${wine.name}${wine.vintage ? ` ${wine.vintage}` : ''}", 타입: ${wine.wine_type || '미상'}, 품종: ${wine.grape_variety || '품종 미상'}, 산지: ${wine.region || '산지 미상'}
-${ctSection}
-다음 3단계 우선순위로 음용 적기를 분석하세요:
-1단계: CellarTracker 데이터에 정확히 일치하는 와인이 있으면 그 데이터를 기반으로 판단
-2단계: 유사 와인(같은 생산자, 품종, 산지)의 데이터가 있으면 이를 참고하여 추론
-3단계: 위 데이터가 없으면 포도 품종, 산지, 빈티지 특성을 기반으로 일반적 와인학 지식으로 추정
+  // 와인 레퍼런스 가이드라인 섹션
+  const refs = findReferenceData(wine);
+  let refSection = '';
+  if (refs.length > 0) {
+    refSection = '\n--- 와인 가이드라인 참고 데이터 ---\n';
+    for (const ref of refs) {
+      const vintage = wine.vintage ? parseInt(wine.vintage) : null;
+      const peakStartYear = vintage ? vintage + ref.window.peakStart : null;
+      const peakEndYear = vintage ? vintage + ref.window.peakEnd : null;
+      const maxAgeYear = vintage ? vintage + ref.window.maxAge : null;
+      refSection += `[${ref.category}] 일반적 음용 적기: 빈티지+${ref.window.peakStart}~${ref.window.peakEnd}년 (최대 ${ref.window.maxAge}년)`;
+      if (peakStartYear) {
+        refSection += ` → ${peakStartYear}~${peakEndYear}년 (최대 ${maxAgeYear}년)`;
+      }
+      refSection += `\n  참고: ${ref.tips}\n`;
+    }
+  }
 
-반드시 다음 JSON으로만 응답: {"drinking_window_start": 연도, "drinking_window_end": 연도, "recommendation": "optimal_now|age_more|drink_soon", "reason": "이유 요약", "source": "ct_exact|ct_similar|ai_estimate", "reasoning": "어떤 데이터/근거로 이 결론에 도달했는지 상세 설명", "description": "이 와인의 특별한 점을 2-3문장으로 소개 (생산자 특징, 떼루아, 양조 방식, 역사적 의미 등)"}`;
+  const hasCtExact = exact.length > 0;
+
+  return `와인: "${wine.name}${wine.vintage ? ` ${wine.vintage}` : ''}", 타입: ${wine.wine_type || '미상'}, 품종: ${wine.grape_variety || '품종 미상'}, 산지: ${wine.region || '산지 미상'}
+${ctSection}${refSection}
+다음 우선순위로 음용 적기를 분석하세요:
+1단계: CellarTracker 데이터에 정확히 일치하는 와인이 있으면 그 데이터를 기반으로 판단 (source: "ct_exact")
+2단계: CellarTracker 유사 와인이 있으면 참고하되, 와인 가이드라인도 함께 고려 (source: "ct_similar")
+3단계: 와인 가이드라인 데이터를 기반으로 이 와인의 등급, 생산자 명성, 빈티지 특성을 반영하여 분석 (source: "ref_guided")
+4단계: 위 데이터가 모두 없으면 일반적 와인학 지식으로 추정 (source: "ai_estimate")
+
+${hasCtExact ? '' : '중요: CellarTracker 정확 매칭 데이터가 없으므로 와인 가이드라인을 주요 근거로 사용하세요.\n'}반드시 다음 JSON으로만 응답: {"drinking_window_start": 연도, "drinking_window_end": 연도, "recommendation": "optimal_now|age_more|drink_soon", "reason": "이유 요약", "source": "ct_exact|ct_similar|ref_guided|ai_estimate", "reasoning": "어떤 데이터/근거로 이 결론에 도달했는지 상세 설명", "description": "이 와인의 특별한 점을 2-3문장으로 소개 (생산자 특징, 떼루아, 양조 방식, 역사적 의미 등)"}`;
 }
 
 export function parseDrinkingWindowResponse(reply) {
@@ -111,9 +134,13 @@ export function formatRecommendationReason(parsed) {
   const sourceLabels = {
     ct_exact: 'CellarTracker 정확 매칭',
     ct_similar: 'CellarTracker 유사 와인 참고',
+    ref_guided: '와인 가이드라인 기반 AI 분석',
     ai_estimate: 'AI 추정',
   };
   const sourceLabel = sourceLabels[parsed.source] || 'AI 추정';
   const reasoning = parsed.reasoning || parsed.reason || '';
   return `[${sourceLabel}] ${reasoning}`;
 }
+
+// 서버 사이드에서도 사용할 수 있도록 매칭 유틸리티 export
+export { tokenize, wordOverlapScore };
