@@ -279,7 +279,7 @@ router.post('/:token/recommend', resolveGuestToken, async (req, res) => {
     const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 4096,
-      temperature: 0.3,
+      temperature: 0,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
     });
@@ -287,17 +287,20 @@ router.post('/:token/recommend', resolveGuestToken, async (req, res) => {
     const totalInputTokens = response.usage?.input_tokens || 0;
     const totalOutputTokens = response.usage?.output_tokens || 0;
 
-    const text = response.content
+    let text = response.content
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('');
+
+    // 마크다운 코드블록 제거 (```json ... ``` 또는 ``` ... ```)
+    text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
     // JSON 파싱
     let recommendation;
     try {
       recommendation = JSON.parse(text);
     } catch {
-      console.error('[guest-recommend] JSON parse failed:', text.slice(0, 200));
+      console.error('[guest-recommend] JSON parse failed:', text.slice(0, 500));
       return res.status(500).json({ error: '추천 결과를 처리할 수 없습니다. 다시 시도해주세요.' });
     }
 

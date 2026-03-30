@@ -45,7 +45,7 @@ function buildRecommendationPrompt(answers, cellarWines) {
 - 예산 정보가 있다면 그에 맞춰 추천하세요.
 
 ## 응답 형식
-반드시 아래 JSON 형식으로만 응답하세요. JSON 외의 텍스트, 설명, 마크다운 코드블록을 절대 포함하지 마세요.
+반드시 유효한 JSON으로만 응답하세요. JSON 외의 텍스트, 설명, 마크다운 코드블록(예: \`\`\`json)을 절대 포함하지 마세요. 응답의 첫 문자는 반드시 { 이어야 합니다.
 
 {
   "cellarMatches": [
