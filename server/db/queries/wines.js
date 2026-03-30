@@ -161,7 +161,12 @@ async function getGuestWines(householdId, filters = {}) {
     i++;
   }
 
-  sql += ' ORDER BY drinking_window_start ASC NULLS LAST, name ASC';
+  sql += ` ORDER BY CASE drinking_recommendation
+    WHEN 'drink_soon' THEN 1
+    WHEN 'optimal_now' THEN 2
+    WHEN 'age_more' THEN 3
+    ELSE 4 END,
+    drinking_window_start ASC NULLS LAST, name ASC`;
   return queryAll(sql, params);
 }
 
