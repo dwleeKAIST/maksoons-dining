@@ -245,4 +245,86 @@ ${contextText ? `\n--- 참고 데이터 ---\n${contextText}` : ''}`;
   }
 });
 
+// POST /api/guest/:token/recommend — AI 소믈리에 와인 추천 (위저드)
+router.post('/:token/recommend', resolveGuestToken, async (req, res) => {
+  try {
+    const botRouter = require('./bot');
+    const { getClient, MODEL, INPUT_COST, OUTPUT_COST, getCurrentMonth } = botRouter;
+    const { buildRecommendationPrompt } = require('../prompts/wineRecommendation');
+
+    const { answers } = req.body;
+    if (!answers) return res.status(400).json({ error: '추천 정보가 필요합니다.' });
+
+    const householdId = req.household.id;
+    const ownerId = req.household.owner_id;
+
+    // 비용 제한 확인
+    const settings = await getUserSettings(ownerId);
+    const month = getCurrentMonth();
+    const usage = await botQueries.getMonthlyUsage(householdId, month);
+    const usdToKrw = settings?.usd_to_krw || 1350;
+    const maxCostKrw = settings?.bot_max_cost_krw || 10000;
+    const currentCostKrw = (usage?.total_cost_usd || 0) * usdToKrw;
+    if (currentCostKrw >= maxCostKrw) {
+      return res.status(429).json({ error: '이번 달 AI 사용 한도에 도달했습니다.' });
+    }
+
+    // 셀러 와인 전체 조회
+    const wines = await wineQueries.getGuestWines(householdId, {});
+
+    // 전용 프롬프트 생성
+    const { systemPrompt, userMessage } = buildRecommendationPrompt(answers, wines);
+
+    // Claude 단일 호출
+    const response = await getClient().messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    const totalInputTokens = response.usage?.input_tokens || 0;
+    const totalOutputTokens = response.usage?.output_tokens || 0;
+
+    const text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    // JSON 파싱
+    let recommendation;
+    try {
+      recommendation = JSON.parse(text);
+    } catch {
+      console.error('[guest-recommend] JSON parse failed:', text.slice(0, 200));
+      return res.status(500).json({ error: '추천 결과를 처리할 수 없습니다. 다시 시도해주세요.' });
+    }
+
+    // 외부 추천 와인에 검색 URL 추가
+    const addSearchUrl = (wine) => ({
+      ...wine,
+      searchUrl: `https://www.wine-searcher.com/find/${encodeURIComponent(wine.name.replace(/\s+/g, '+'))}`,
+    });
+
+    if (recommendation.externalRecommendations) {
+      if (recommendation.externalRecommendations.entryLevel) {
+        recommendation.externalRecommendations.entryLevel = recommendation.externalRecommendations.entryLevel.map(addSearchUrl);
+      }
+      if (recommendation.externalRecommendations.premium) {
+        recommendation.externalRecommendations.premium = recommendation.externalRecommendations.premium.map(addSearchUrl);
+      }
+    }
+
+    // 비용 추적
+    const costUsd = totalInputTokens * INPUT_COST + totalOutputTokens * OUTPUT_COST;
+    await botQueries.trackUsage(householdId, ownerId, month, totalInputTokens, totalOutputTokens, costUsd);
+
+    res.json({ recommendation });
+  } catch (err) {
+    console.error('[guest-recommend] error:', err.message);
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
 module.exports = router;
