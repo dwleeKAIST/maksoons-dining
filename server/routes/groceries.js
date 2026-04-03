@@ -42,6 +42,7 @@ router.post('/', async (req, res) => {
 // PATCH /:id — 식재료 수정
 router.patch('/:id', async (req, res) => {
   try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: '잘못된 ID입니다.' });
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: '이름이 필요합니다.' });
     const result = await groceryQueries.updateGrocery(req.params.id, req.user.householdId, req.body);
@@ -56,6 +57,7 @@ router.patch('/:id', async (req, res) => {
 // DELETE /:id — 식재료 삭제
 router.delete('/:id', async (req, res) => {
   try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: '잘못된 ID입니다.' });
     const result = await groceryQueries.deleteGrocery(req.params.id, req.user.householdId);
     if (!result) return res.status(404).json({ error: '식재료를 찾을 수 없습니다.' });
     res.json({ success: true });

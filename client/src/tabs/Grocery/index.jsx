@@ -11,11 +11,15 @@ const CATEGORY_ICONS = {
 
 function getExpiryStatus(expiryDate) {
   if (!expiryDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
-  const diff = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  // UTC 기준 날짜 비교로 timezone 오차 방지
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayMs = new Date(todayStr + 'T00:00:00Z').getTime();
+  const expiryStr = expiryDate.split('T')[0];
+  const expiryMs = new Date(expiryStr + 'T00:00:00Z').getTime();
+  const diff = Math.round((expiryMs - todayMs) / (1000 * 60 * 60 * 24));
   if (diff < 0) return { label: '기한 만료', color: 'text-red-600 bg-red-50', days: diff };
+  if (diff === 0) return { label: '오늘 만료', color: 'text-red-600 bg-red-50', days: 0 };
   if (diff <= 3) return { label: `D-${diff}`, color: 'text-orange-600 bg-orange-50', days: diff };
   if (diff <= 7) return { label: `D-${diff}`, color: 'text-yellow-600 bg-yellow-50', days: diff };
   return { label: `D-${diff}`, color: 'text-green-600 bg-green-50', days: diff };
@@ -28,6 +32,7 @@ export default function Grocery() {
   const [editingItem, setEditingItem] = useState(null);
   const [showScanner, setShowScanner] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
+  const [sortBy, setSortBy] = useState('expiry'); // 'expiry' | 'created'
 
   const fetchGroceries = useCallback(async () => {
     try {
@@ -66,6 +71,16 @@ export default function Grocery() {
 
   const categories = [...new Set(groceries.map(g => g.category).filter(Boolean))];
   const filtered = filterCategory ? groceries.filter(g => g.category === filterCategory) : groceries;
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'expiry') {
+      // 유통기한 없는 항목은 뒤로
+      if (!a.expiry_date && !b.expiry_date) return 0;
+      if (!a.expiry_date) return 1;
+      if (!b.expiry_date) return -1;
+      return a.expiry_date.localeCompare(b.expiry_date);
+    }
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
   return (
     <div>
@@ -88,9 +103,25 @@ export default function Grocery() {
         </div>
       </div>
 
-      {/* 카테고리 필터 */}
-      {categories.length > 0 && (
-        <div className="flex gap-1.5 mb-4 flex-wrap">
+      {/* 정렬 + 카테고리 필터 */}
+      {groceries.length > 0 && (
+        <div className="flex gap-1.5 mb-4 flex-wrap items-center">
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 mr-2">
+            <button
+              onClick={() => setSortBy('expiry')}
+              className={`px-2 py-1 rounded-md text-xs transition-colors ${sortBy === 'expiry' ? 'bg-white shadow text-green-700 font-medium' : 'text-gray-500'}`}
+            >
+              유통기한순
+            </button>
+            <button
+              onClick={() => setSortBy('created')}
+              className={`px-2 py-1 rounded-md text-xs transition-colors ${sortBy === 'created' ? 'bg-white shadow text-green-700 font-medium' : 'text-gray-500'}`}
+            >
+              등록순
+            </button>
+          </div>
+      {categories.length > 0 && (<>
+        <div className="flex gap-1.5 flex-wrap">
           <button
             onClick={() => setFilterCategory('')}
             className={`px-2.5 py-1 rounded-full text-xs transition-colors ${!filterCategory ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -107,6 +138,8 @@ export default function Grocery() {
             </button>
           ))}
         </div>
+      </>)}
+        </div>
       )}
 
       {/* 식재료 목록 */}
@@ -115,7 +148,7 @@ export default function Grocery() {
           <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-gray-500">로딩 중...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-5xl mb-3">🥬</div>
           <p className="text-gray-500 mb-1">
@@ -127,7 +160,7 @@ export default function Grocery() {
         </div>
       ) : (
         <div className="grid gap-2">
-          {filtered.map(item => {
+          {sorted.map(item => {
             const expiry = getExpiryStatus(item.expiry_date);
             return (
               <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 hover:shadow-sm transition-shadow">
@@ -138,8 +171,9 @@ export default function Grocery() {
                     {item.category && <span className="text-xs text-gray-400">{item.category}</span>}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-                    {item.quantity && <span>{item.quantity}{item.unit || ''}</span>}
+                    {item.quantity != null && <span>{item.quantity}{item.unit || ''}</span>}
                     {item.purchase_date && <span>구매: {item.purchase_date.split('T')[0]}</span>}
+                    {item.expiry_date && <span>기한: {item.expiry_date.split('T')[0]}</span>}
                     {item.memo && <span className="truncate">{item.memo}</span>}
                   </div>
                 </div>
