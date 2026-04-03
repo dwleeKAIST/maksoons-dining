@@ -261,9 +261,107 @@ router.post('/verify-name', async (req, res) => {
   }
 });
 
-// POST /api/ocr/scan-grocery — TBU
+// POST /api/ocr/scan-grocery — 영수증 OCR 스캔으로 식재료 추출
 router.post('/scan-grocery', async (req, res) => {
-  res.status(501).json({ error: '식재료 스캔 기능은 준비 중입니다. (Coming Soon)' });
+  try {
+    const { image } = req.body;
+    if (!image) return res.status(400).json({ error: '이미지가 필요합니다.' });
+
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    // Google Cloud Vision OCR
+    let ocrText;
+    try {
+      const [result] = await getVisionClient().textDetection(imageBuffer);
+      ocrText = result.fullTextAnnotation?.text;
+      if (!ocrText) {
+        return res.status(400).json({ error: '이미지에서 텍스트를 인식할 수 없습니다.' });
+      }
+    } catch (err) {
+      if (err.message?.includes('PERMISSION_DENIED') || err.code === 7) {
+        return res.status(503).json({ error: 'Google Cloud Vision API가 활성화되지 않았습니다.' });
+      }
+      throw err;
+    }
+
+    // Claude로 영수증에서 식재료 항목 파싱
+    const today = new Date().toISOString().split('T')[0];
+    const response = await getAnthropic().messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: `다음은 마트/편의점 영수증에서 OCR로 추출한 텍스트입니다. 식재료/식품 항목을 추출해주세요.
+
+⚠️ 중요 규칙:
+- OCR 텍스트에서 실제 구매한 식품/식재료 항목만 추출하세요.
+- 할인, 포인트, 결제수단, 봉투, 카드 정보 등 비식품 항목은 반드시 제외하세요.
+- 제품명에 OCR 오류가 있으면 올바른 이름으로 교정하세요.
+- 각 항목의 유통기한(expiry_days)을 구매일(오늘: ${today})로부터의 예상 일수로 추정하세요.
+  유통기한 추정 기준:
+  · 신선 채소/나물: 5일 · 과일: 7일 · 두부/콩나물: 5일
+  · 우유/요거트: 7~10일 · 치즈: 30일 · 계란: 21일 · 버터: 60일
+  · 신선 육류: 3일 · 냉장 가공육(햄/소시지): 14일
+  · 신선 수산물/회: 2일 · 냉장 수산물: 5일
+  · 냉동식품: 180일 · 통조림/캔: 730일
+  · 라면/면류: 180일 · 과자/스낵: 120일 · 빵: 5일
+  · 음료(생수/주스/탄산): 180일 · 커피/차: 365일
+  · 양념/조미료(간장/된장/고추장 등): 365일 · 소스류: 180일
+  · 쌀/곡류: 180일 · 밀가루: 365일
+  · 냉장 반찬/샐러드: 5일 · 도시락/김밥: 1일
+  · 기타 가공식품: 90일
+
+- category는 다음 중 하나로 분류: 채소, 과일, 육류, 수산물, 유제품, 음료, 냉동식품, 양념/조미료, 과자/간식, 곡류, 가공식품, 기타
+
+OCR 텍스트:
+${ocrText}
+
+다음 JSON 형식으로만 응답하세요:
+{
+  "items": [
+    {
+      "name": "제품명 (교정된 정확한 이름)",
+      "category": "카테고리",
+      "quantity": 수량(숫자) 또는 1,
+      "unit": "개/팩/kg/g/L/ml/병/봉 등" 또는 null,
+      "price": 가격(숫자, 원) 또는 null,
+      "expiry_days": 예상 유통기한 일수(숫자)
+    }
+  ]
+}
+
+JSON만 응답하세요.`,
+        },
+      ],
+    });
+
+    // 비용 추적
+    const inputTokens = response.usage?.input_tokens || 0;
+    const outputTokens = response.usage?.output_tokens || 0;
+    const costUsd = inputTokens * INPUT_COST + outputTokens * OUTPUT_COST;
+    await botQueries.trackUsage(req.user.householdId, req.user.id, getCurrentMonth(), inputTokens, outputTokens, costUsd);
+
+    // 파싱 결과 추출
+    let parsed;
+    try {
+      const text = response.content[0].text;
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch {
+      return res.status(400).json({ error: 'AI가 식재료 정보를 파싱하지 못했습니다.', raw_text: ocrText });
+    }
+
+    res.json({
+      ocr_text: ocrText,
+      items: parsed.items || [],
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd },
+    });
+  } catch (err) {
+    console.error('[ocr] scan-grocery error:', err.message);
+    res.status(500).json({ error: '서버 오류' });
+  }
 });
 
 module.exports = router;
