@@ -306,6 +306,71 @@ _DATABASE_URL="postgresql://maksoon:YOUR_PASSWORD@/maksoons_dining?host=/cloudsq
 
 ---
 
+## 부록: Passbolt 가족 비밀번호 관리자 (선택, 로컬/홈서버 전용)
+
+가족과 안전하게 비밀번호를 공유할 수 있는 셀프호스팅 비밀번호 관리자 [Passbolt](https://www.passbolt.com/)를 docker-compose로 함께 띄울 수 있습니다. 설정 탭의 **🔐 가족 비밀번호 (Passbolt)** 카드에서 새 탭으로 열립니다.
+
+> **주의**: Passbolt는 Cloud Run 프로덕션 배포에 포함되지 않습니다 (로컬/홈서버 전용). Passbolt 사용에는 브라우저 확장 프로그램이 필수입니다.
+
+### 1. 시작
+
+```bash
+docker compose up -d passbolt-db passbolt
+```
+
+첫 부팅은 GPG 키 생성과 DB 마이그레이션으로 1~2분 걸립니다. 상태 확인:
+
+```bash
+curl -s http://localhost:8081/healthcheck/status.json
+```
+
+### 2. 관리자 등록
+
+SMTP 없이 운영하므로 사용자 등록은 CLI로 진행합니다. 콘솔에 일회용 설정 링크가 출력됩니다:
+
+```bash
+docker compose exec passbolt su -m -c \
+  "/usr/share/php/passbolt/bin/cake passbolt register_user -u admin@example.com -f 이름 -l 성 -r admin" \
+  -s /bin/sh www-data
+```
+
+### 3. 브라우저 확장 설치 및 계정 셋업
+
+1. [Passbolt 브라우저 확장](https://www.passbolt.com/download) 설치 (Chrome/Firefox/Edge — 필수)
+2. 위에서 출력된 링크를 브라우저에서 열어 개인 키와 암호구(passphrase) 생성
+3. 이후 http://localhost:8081 에서 로그인
+
+### 4. 가족 등록
+
+같은 명령에서 `-r user`로 실행하고, 출력된 링크를 가족에게 직접 전달합니다:
+
+```bash
+docker compose exec passbolt su -m -c \
+  "/usr/share/php/passbolt/bin/cake passbolt register_user -u family@example.com -f 이름 -l 성 -r user" \
+  -s /bin/sh www-data
+```
+
+### 5. 다른 기기(LAN)에서 접속
+
+`.env`에 서버 IP를 설정하고 Passbolt를 재기동합니다:
+
+```env
+PASSBOLT_URL=http://192.168.0.10:8081
+```
+
+```bash
+docker compose up -d passbolt
+```
+
+`APP_FULL_BASE_URL`(= `PASSBOLT_URL`)은 브라우저 주소창의 주소와 **정확히 일치**해야 합니다. 불일치가 가장 흔한 실패 원인입니다 (확장 프로그램이 페어링을 거부).
+
+### 주의사항
+
+- HTTP는 홈 네트워크 전용입니다. 외부에 공개하려면 리버스 프록시 + HTTPS 구성이 필수입니다.
+- `passbolt_gpg` / `passbolt_jwt` 볼륨은 서버 키입니다. **삭제하면 전체 계정을 영구히 복구할 수 없습니다.**
+
+---
+
 ## 프로젝트 구조
 
 ```
