@@ -18,7 +18,10 @@ services:
       retries: 5
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_PASSBOLT_URL: ${VITE_PASSBOLT_URL:-}
     ports:
       - '8080:8080'
     environment:
@@ -31,5 +34,46 @@ services:
       db:
         condition: service_healthy
 
+  passbolt-db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'true'
+      MYSQL_DATABASE: passbolt
+      MYSQL_USER: passbolt
+      MYSQL_PASSWORD: ${PASSBOLT_DB_PASSWORD:-passbolt_dev_password}
+    volumes:
+      - passbolt_db:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  passbolt:
+    image: passbolt/passbolt:latest-ce
+    depends_on:
+      passbolt-db:
+        condition: service_healthy
+    environment:
+      # APP_FULL_BASE_URL은 브라우저 접속 주소와 정확히 일치해야 함 (README 부록 참조)
+      APP_FULL_BASE_URL: ${PASSBOLT_URL:-http://localhost:8081}
+      DATASOURCES_DEFAULT_HOST: passbolt-db
+      DATASOURCES_DEFAULT_USERNAME: passbolt
+      DATASOURCES_DEFAULT_PASSWORD: ${PASSBOLT_DB_PASSWORD:-passbolt_dev_password}
+      DATASOURCES_DEFAULT_DATABASE: passbolt
+      # SMTP 미설정: 사용자 등록은 CLI로 진행 (README 부록 참조)
+    volumes:
+      # 서버 GPG/JWT 키 — 삭제 시 전체 계정 영구 잠금
+      - passbolt_gpg:/etc/passbolt/gpg
+      - passbolt_jwt:/etc/passbolt/jwt
+    command: >
+      /usr/bin/wait-for.sh -t 0 passbolt-db:3306 -- /docker-entrypoint.sh
+    ports:
+      - '8081:80'
+      - '4443:443'
+
 volumes:
   pgdata:
+  passbolt_db:
+  passbolt_gpg:
+  passbolt_jwt:
