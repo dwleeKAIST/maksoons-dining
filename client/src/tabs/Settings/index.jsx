@@ -35,6 +35,10 @@ export default function Settings() {
   // Passbolt는 앱과 같은 호스트의 8081 포트에서 동작 (docker-compose)
   const passboltUrl = import.meta.env.VITE_PASSBOLT_URL
     || `${window.location.protocol}//${window.location.hostname}:8081`;
+  // URL이 명시 설정됐거나 로컬/사설망 접속일 때만 카드 표시 (Cloud Run 등 프로덕션에서는 숨김)
+  const isLocalNetwork = /^(localhost$|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/
+    .test(window.location.hostname);
+  const showPassbolt = Boolean(import.meta.env.VITE_PASSBOLT_URL) || isLocalNetwork;
 
   useEffect(() => {
     if (household) {
@@ -337,22 +341,24 @@ export default function Settings() {
         </section>
       )}
 
-      {/* 가족 비밀번호 (Passbolt) */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="font-bold text-sm text-gray-700 mb-3">🔐 가족 비밀번호 (Passbolt)</h3>
-        <p className="text-xs text-gray-400 mb-3">
-          가족과 안전하게 비밀번호를 공유하는 Passbolt 비밀번호 관리자입니다.
-          새 탭에서 열리며, 브라우저 확장 프로그램 설치가 필요합니다.
-        </p>
-        <a
-          href={passboltUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
-        >
-          Passbolt 열기
-        </a>
-      </section>
+      {/* 가족 비밀번호 (Passbolt) — 로컬/홈서버 전용, 프로덕션에서는 숨김 */}
+      {showPassbolt && (
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="font-bold text-sm text-gray-700 mb-3">🔐 가족 비밀번호 (Passbolt)</h3>
+          <p className="text-xs text-gray-400 mb-3">
+            가족과 안전하게 비밀번호를 공유하는 Passbolt 비밀번호 관리자입니다.
+            새 탭에서 열리며, 브라우저 확장 프로그램 설치가 필요합니다.
+          </p>
+          <a
+            href={passboltUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
+          >
+            Passbolt 열기
+          </a>
+        </section>
+      )}
 
       {/* AI 비용 설정 */}
       <section className="bg-white rounded-xl border border-gray-200 p-4">

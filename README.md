@@ -368,6 +368,7 @@ docker compose up -d passbolt
 
 - HTTP는 홈 네트워크 전용입니다. 외부에 공개하려면 리버스 프록시 + HTTPS 구성이 필수입니다.
 - `passbolt_gpg` / `passbolt_jwt` 볼륨은 서버 키입니다. **삭제하면 전체 계정을 영구히 복구할 수 없습니다.**
+- 설정 탭의 Passbolt 카드는 localhost/사설망(192.168.x 등)에서 접속했거나 빌드에 `VITE_PASSBOLT_URL`이 설정된 경우에만 표시됩니다. Cloud Run 프로덕션에서는 Passbolt가 없으므로 자동으로 숨겨집니다.
 
 ---
 
